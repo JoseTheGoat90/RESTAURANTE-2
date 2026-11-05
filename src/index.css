@@ -1,0 +1,43 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --bg-main: #F4F6F8;
+    --bg-card: #FFFFFF;
+    --text-main: #1E293B;
+    --text-muted: #64748B;
+    --border-soft: #E2E8F0;
+
+    /* Semantic traffic-light status colors (vital for kitchen & orders) */
+    --status-pending: #F59E0B;
+    --status-kitchen: #3B82F6;
+    --status-ready: #10B981;
+    --status-closed: #94A3B8;
+    --status-alert: #EF4444;
+  }
+
+  .dark {
+    /* Pure black dark mode as requested */
+    --bg-main: #000000;
+    --bg-card: #121212;
+    --text-main: #F8FAFC;
+    --text-muted: #94A3B8;
+    --border-soft: #27272A;
+  }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Image presentation in dark mode: preserves rich contrast without harsh glare */
+  .dark img {
+    filter: brightness(0.92) contrast(1.04);
+  }
+}
