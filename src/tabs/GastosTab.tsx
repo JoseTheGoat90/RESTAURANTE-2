@@ -180,19 +180,39 @@ export const GastosTab: React.FC = () => {
             </div>
           )}
 
-          {/* Concept Input */}
+          {/* Concept Input with Predictive Datalist and Quick Selection */}
           <div>
-            <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-              Concepto o descripción:
-            </label>
-            <input
-              type="text"
-              value={concepto}
-              onChange={(e) => setConcepto(normalizeUserInput(e.target.value))}
-              placeholder="Ej. Compra de lomo y cortes de res..."
-              className="w-full h-11 px-3.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-900 dark:text-white placeholder:text-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-              required
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                Concepto o descripción:
+              </label>
+              {concepto.trim() && !conceptosFiltrados.some((c) => c.toLowerCase() === concepto.toLowerCase().trim()) && (
+                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                  ✨ Nuevo concepto (se guardará en el catálogo)
+                </span>
+              )}
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                list="conceptos-sugeridos"
+                value={concepto}
+                onChange={(e) => setConcepto(normalizeUserInput(e.target.value))}
+                onBlur={(e) => setConcepto(capitalizeFirst(e.target.value))}
+                placeholder={`Selecciona o escribe el gasto de ${categoria}...`}
+                className="w-full h-11 px-3.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-900 dark:text-white placeholder:text-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                required
+              />
+              <datalist id="conceptos-sugeridos">
+                {conceptosFiltrados.map((item) => (
+                  <option key={item} value={capitalizeFirst(item)} />
+                ))}
+              </datalist>
+            </div>
+            <p className="text-[11px] text-stone-400 mt-1">
+              💡 Puedes elegir una sugerencia del menú desplegable o escribir una nueva descripción. La primera letra se capitaliza automáticamente.
+            </p>
           </div>
 
           {/* Value Input */}

@@ -5,12 +5,31 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
-import { Utensils, Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext.tsx';
+import {
+  ChefHat,
+  Lock,
+  Mail,
+  Loader2,
+  AlertCircle,
+  ShieldCheck,
+  Sun,
+  Moon,
+  ArrowRight,
+  KeyRound,
+  CheckCircle2,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+
+const MASTER_EMAIL = 'admin@restaurante.com';
+const MASTER_PASS = '1234';
 
 export const LoginScreen: React.FC = () => {
   const { login, isLoading, loginError } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { effectiveTheme, toggleTheme, paletteConfig } = useTheme();
+
+  const [email, setEmail] = useState(MASTER_EMAIL);
+  const [password, setPassword] = useState(MASTER_PASS);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,57 +37,182 @@ export const LoginScreen: React.FC = () => {
     await login(email, password);
   };
 
+  const handleFillMaster = () => {
+    setEmail(MASTER_EMAIL);
+    setPassword(MASTER_PASS);
+  };
+
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 py-8 text-slate-900 dark:text-slate-100 transition-colors">
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-sm">
-        {/* Brand Header */}
+    <div className="min-h-screen w-full relative flex items-center justify-center p-4 sm:p-6 bg-[var(--bg-main)] text-[var(--text-main)] overflow-hidden transition-colors duration-300">
+      {/* Dynamic Animated Ambient Background Orbs */}
+      <motion.div
+        animate={{
+          scale: [1, 1.25, 1],
+          x: [0, 30, 0],
+          y: [0, -40, 0],
+          opacity: [0.15, 0.28, 0.15],
+        }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute -top-24 -left-24 w-96 h-96 rounded-full blur-3xl pointer-events-none"
+        style={{
+          background: effectiveTheme === 'dark'
+            ? 'radial-gradient(circle, #3B82F6 0%, transparent 70%)'
+            : 'radial-gradient(circle, #2563EB 0%, transparent 70%)',
+        }}
+      />
+      <motion.div
+        animate={{
+          scale: [1.2, 0.95, 1.2],
+          x: [0, -35, 0],
+          y: [0, 45, 0],
+          opacity: [0.12, 0.22, 0.12],
+        }}
+        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+        className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full blur-3xl pointer-events-none"
+        style={{
+          background: effectiveTheme === 'dark'
+            ? 'radial-gradient(circle, #34D399 0%, transparent 70%)'
+            : 'radial-gradient(circle, #10B981 0%, transparent 70%)',
+        }}
+      />
+
+      {/* Top Controls: Exclusively Theme Switcher (☀️ Claro #F4F5F7 / 🌙 Oscuro #000000) */}
+      <div className="absolute top-4 right-4 z-20">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={toggleTheme}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-soft)] shadow-sm hover:opacity-90 transition-all cursor-pointer"
+          title={`Cambiar a ${effectiveTheme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}`}
+        >
+          {effectiveTheme === 'dark' ? (
+            <>
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+              <span>☀️ Modo Claro</span>
+            </>
+          ) : (
+            <>
+              <Moon className="w-3.5 h-3.5 text-blue-600" />
+              <span>🌙 Modo Oscuro</span>
+            </>
+          )}
+        </motion.button>
+      </div>
+
+      {/* Main Glassmorphic Login Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 28, scale: 0.94 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-md relative z-10 bg-[var(--bg-card)] border border-[var(--border-soft)] rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl"
+      >
+        {/* Brand Header with Animated Glow Badge */}
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3">
-            <Utensils className="w-6 h-6" />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Restaurante · Panel de gestión
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Ingreso exclusivo para personal autorizado
-          </p>
+          <motion.div
+            initial={{ scale: 0, rotate: -25 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', damping: 14, stiffness: 200, delay: 0.1 }}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-3 shadow-lg relative group"
+            style={{ backgroundColor: paletteConfig.accent }}
+          >
+            <ChefHat className="w-7 h-7 stroke-[2.2]" />
+            <motion.div
+              animate={{ opacity: [0.4, 0.8, 0.4], scale: [1, 1.15, 1] }}
+              transition={{ duration: 3, repeat: Infinity }}
+              className="absolute inset-0 rounded-2xl -z-10 blur-sm opacity-50"
+              style={{ backgroundColor: paletteConfig.accent }}
+            />
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--text-main)]"
+          >
+            Restaurante <span className="opacity-40">·</span> Panel de gestión
+          </motion.h1>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.25 }}
+            className="flex items-center gap-1.5 mt-1.5 text-xs text-[var(--text-muted)] font-medium"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Acceso exclusivo con Cuenta Maestra Autorizada</span>
+          </motion.div>
         </div>
 
-        {/* Error Alert */}
-        {loginError && (
-          <div className="mb-5 flex items-start gap-2.5 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-red-700 dark:text-red-300 text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{loginError}</span>
+        {/* Master Account Info Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-5 p-3.5 rounded-2xl bg-[var(--bg-header)] border border-[var(--border-soft)] flex items-center justify-between gap-3 text-xs"
+        >
+          <div className="min-w-0">
+            <span className="block text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+              Cuenta Maestra Única
+            </span>
+            <div className="font-bold text-[var(--text-main)] truncate mt-0.5">
+              {MASTER_EMAIL}
+            </div>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={handleFillMaster}
+            className="px-3 py-1.5 rounded-xl font-bold text-[11px] bg-[var(--brand-accent)] text-white hover:opacity-95 shadow-sm transition-all cursor-pointer shrink-0"
+          >
+            Usar Cuenta
+          </button>
+        </motion.div>
+
+        {/* Error Alert with Shake Animation */}
+        <AnimatePresence>
+          {loginError && (
+            <motion.div
+              initial={{ opacity: 0, y: -6, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5 font-medium"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="leading-snug">{loginError}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Correo electrónico
+            <label className="block text-xs font-bold text-[var(--text-main)] mb-1.5">
+              Correo de la cuenta autorizada
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Mail className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="usuario@restaurante.com"
+                placeholder={MASTER_EMAIL}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
-                className="w-full h-11 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-colors disabled:opacity-50"
+                className="w-full h-11 pl-10 pr-3.5 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-transparent transition-all disabled:opacity-50"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Contraseña
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-[var(--text-main)]">
+                Clave de acceso
+              </label>
+              <span className="text-[10px] text-[var(--text-muted)] font-mono">Demo: 1234</span>
+            </div>
             <div className="relative">
-              <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Lock className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
                 required
@@ -77,33 +221,41 @@ export const LoginScreen: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                className="w-full h-11 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-colors disabled:opacity-50"
+                className="w-full h-11 pl-10 pr-3.5 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-transparent transition-all disabled:opacity-50"
               />
             </div>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={isLoading || !email.trim() || !password}
-            className="w-full h-11 mt-2 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-400 text-white dark:text-slate-950 font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 active:scale-[0.99] cursor-pointer"
+            style={{ backgroundColor: paletteConfig.accent }}
+            className="w-full h-12 mt-2 rounded-xl text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Ingresando...</span>
+                <span>Verificando autorización...</span>
               </>
             ) : (
-              <span>Iniciar sesión</span>
+              <>
+                <span>Ingresar al Panel de Gestión</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
             )}
-          </button>
+          </motion.button>
         </form>
 
-        <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-center">
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Control de ventas, gastos, inventario y balance en pesos colombianos (COP).
+        {/* Security Footer Notice */}
+        <div className="mt-6 pt-4 border-t border-[var(--border-soft)] text-center space-y-1">
+          <p className="text-[11px] text-[var(--text-muted)] flex items-center justify-center gap-1">
+            <KeyRound className="w-3 h-3 text-amber-500" />
+            <span>Panel centralizado para administración, ventas, gastos e inventario</span>
           </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

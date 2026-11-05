@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useData } from '../context/DataContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
 import { sendChatMessage } from '../services/api.ts';
 import { getChatUrl, setChatUrl, DEFAULT_CHAT_URL } from '../config.ts';
 import { cleanAsterisks, formatCOP } from '../utils/formatters.ts';
@@ -39,6 +40,7 @@ const QUICK_PROMPTS = [
 export const AsistenteTab: React.FC = () => {
   const { ventas, gastos, ingredientes, recetas, reporteHoy, showNotification } = useData();
   const { paletteConfig } = useTheme();
+  const { getValidAccessToken, session, handleAuthError } = useAuth();
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -79,11 +81,12 @@ export const AsistenteTab: React.FC = () => {
     setPingStatus('testing');
     setPingMessage('Probando conexión con el nodo Webhook...');
     try {
+      const token = await getValidAccessToken();
       const res = await sendChatMessage({
-        token: '',
+        token: token || '',
         message: 'ping-test: verifique conexión operativa de restaurante',
-        sessionId: 'sistema-diagnostico'
-      });
+        sessionId: session?.userEmail || 'sistema-diagnostico'
+      }, handleAuthError);
       if (res && res.output) {
         setPingStatus('success');
         setPingMessage(`Conexión exitosa: ${cleanAsterisks(res.output.slice(0, 100))}`);
@@ -118,11 +121,12 @@ export const AsistenteTab: React.FC = () => {
       const contextPrefix = `[Contexto Restaurante: Ventas=${formatCOP(reporteHoy.total_ventas)}, Gastos=${formatCOP(reporteHoy.total_gastos)}, Balance=${formatCOP(reporteHoy.balance)}, Stock Crítico=${criticosCount} ítems] `;
       const fullPrompt = `${contextPrefix}${query}`;
 
+      const token = await getValidAccessToken();
       const response = await sendChatMessage({
-        token: '',
+        token: token || '',
         message: fullPrompt,
-        sessionId: 'panel-restaurante'
-      });
+        sessionId: session?.userEmail || 'panel-restaurante'
+      }, handleAuthError);
 
       const rawText = response.output || 'Sin respuesta del asistente.';
       // Strictly clean any ** markdown bold symbols as instructed by the user
@@ -192,7 +196,7 @@ export const AsistenteTab: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-[580px] max-w-5xl mx-auto p-3 sm:p-5">
+    <div className="flex flex-col flex-1 h-full max-w-5xl w-full mx-auto p-2 sm:p-4 overflow-hidden">
       {/* Top Bar with Assistant Header and n8n Quick Controls */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-4 mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -310,9 +314,9 @@ export const AsistenteTab: React.FC = () => {
       </AnimatePresence>
 
       {/* Main Single-Window Chat Area */}
-      <div className="flex-1 bg-[var(--bg-card)] rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-col overflow-hidden relative">
+      <div className="flex-1 bg-[var(--bg-card)] rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-col overflow-hidden relative min-h-0">
         {/* Messages Stream */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-0">
           {messages.map((m) => {
             const isUser = m.sender === 'user';
             return (

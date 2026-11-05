@@ -34,7 +34,7 @@ const AppContent: React.FC = () => {
         alertCount={alertCount}
       />
 
-      <main className="flex-1 pb-16 md:pb-8">
+      <main className={`flex-1 ${activeTab === 'asistente' ? 'overflow-hidden flex flex-col h-[calc(100dvh-112px)] sm:h-[calc(100dvh-120px)]' : 'pb-16 md:pb-8'}`}>
         {activeTab === 'resumen' && <ResumenTab onNavigate={(tab) => setActiveTab(tab as TabType)} />}
         {activeTab === 'vender' && <VenderTab />}
         {activeTab === 'gastos' && <GastosTab />}

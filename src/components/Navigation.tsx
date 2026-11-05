@@ -53,7 +53,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   return (
     <>
       {/* Desktop / Tablet Top Tabs Bar */}
-      <nav className="hidden sm:block bg-[var(--bg-card)] border-b border-gray-200 dark:border-zinc-800 transition-colors shadow-xs">
+      <nav className="hidden sm:block bg-[var(--bg-header)] border-b border-[var(--border-soft)] transition-colors shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center gap-1.5 overflow-x-auto py-2 scrollbar-none">
             {items.map((item) => {
@@ -66,7 +66,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     isActive
                       ? 'bg-[var(--brand-light)] text-[var(--brand-accent)] font-bold shadow-xs'
-                      : 'text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800/80 border border-transparent'
+                      : 'text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-[var(--brand-accent)]' : 'text-gray-400 dark:text-zinc-500'}`} />
@@ -87,7 +87,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       </nav>
 
       {/* Mobile Fixed Bottom Nav Bar */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-card)]/95 backdrop-blur-md border-t border-gray-200 dark:border-zinc-800 transition-colors pb-safe">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-header)]/95 backdrop-blur-md border-t border-[var(--border-soft)] transition-colors pb-safe">
         <div className="grid grid-cols-6 items-center h-16 px-1">
           {items.map((item) => {
             const Icon = item.icon;

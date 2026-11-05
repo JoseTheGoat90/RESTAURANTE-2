@@ -184,6 +184,7 @@ interface DataContextType {
   registrar_gasto: (payload: { p_id: string; p_concepto: string; p_categoria: string; p_valor: number }) => Promise<RpcResult>;
   consultar_inventario: () => { ingredientes: Ingrediente[]; bajo_minimo: { ingrediente: string; stock: number; stock_minimo: number; unidad: string }[]; total_items: number };
   generar_reporte: (fecha?: string | null) => Promise<ReporteData>;
+  addConceptoGasto: (nombre: string, categoria: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -447,12 +448,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
+  const addConceptoGasto = useCallback((nombre: string, categoria: string) => {
+    const cleanNombre = nombre.toLowerCase().trim();
+    if (!cleanNombre) return;
+    setConceptosGasto((prev) => {
+      if (prev.some((c) => c.nombre.toLowerCase().trim() === cleanNombre)) return prev;
+      return [...prev, { nombre: cleanNombre, categoria }];
+    });
+  }, []);
+
   const executeExpense = async (payload: {
     p_id: string;
     p_concepto: string;
     p_categoria: string;
     p_valor: number;
   }): Promise<RpcResult> => {
+    // Automatically register concept in catalog
+    addConceptoGasto(payload.p_concepto, payload.p_categoria);
+
     const token = await getValidAccessToken();
     try {
       const remote = await rpcRegistrarGasto(payload, { token, onAuthError: handleAuthError });
@@ -607,6 +620,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         registrar_gasto: executeExpense,
         consultar_inventario,
         generar_reporte,
+        addConceptoGasto,
       }}
     >
       {children}

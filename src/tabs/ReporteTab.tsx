@@ -21,6 +21,11 @@ import {
   UtensilsCrossed,
   PieChart,
   Lightbulb,
+  Sparkles,
+  Calculator,
+  Tag,
+  AlertCircle,
+  Sliders,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
@@ -31,12 +36,16 @@ import {
 } from '../utils/animations.ts';
 
 export const ReporteTab: React.FC = () => {
-  const { reporteHoy, generar_reporte } = useData();
+  const { reporteHoy, generar_reporte, recetas, ventas, gastos } = useData();
   const { paletteConfig } = useTheme();
 
   const [filterDate, setFilterDate] = useState<string>('');
   const [reportData, setReportData] = useState(reporteHoy);
   const [isConsulting, setIsConsulting] = useState<boolean>(false);
+
+  // Predictive & Simulation State (Recommendation 2)
+  const [costIncreasePercent, setCostIncreasePercent] = useState<number>(10); // e.g. 10% annual minimum wage / inflation adjustment
+  const [showPredictiveModule, setShowPredictiveModule] = useState<boolean>(true);
 
   const handleConsult = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +60,36 @@ export const ReporteTab: React.FC = () => {
 
   const balance = reportData.balance;
   const isBalancePositive = balance >= 0;
+
+  // Predictive analysis & Low-rotation dish identification
+  const allDishes = React.useMemo(() => {
+    const set = new Set<string>();
+    recetas.forEach((r) => set.add(r.plato));
+    return Array.from(set);
+  }, [recetas]);
+
+  const rotationStats = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    allDishes.forEach((d) => (counts[d] = 0));
+    ventas.forEach((v) => {
+      counts[v.plato] = (counts[v.plato] || 0) + v.cantidad;
+    });
+    return Object.entries(counts).sort((a, b) => a[1] - b[1]); // lowest sold first
+  }, [allDishes, ventas]);
+
+  const lowRotationDish = rotationStats[0]; // [plato, cantidad]
+  const highRotationDish = rotationStats[rotationStats.length - 1]; // [plato, cantidad]
+
+  // Financial projection simulation (30 days with cost variations)
+  const baseDailySales = Math.max(reportData.total_ventas, 300000);
+  const baseDailyExpenses = Math.max(reportData.total_gastos, 120000);
+
+  const projectedMonthlySales = baseDailySales * 30;
+  const projectedMonthlyExpensesBase = baseDailyExpenses * 30;
+  const additionalCostInflation = (projectedMonthlyExpensesBase * costIncreasePercent) / 100;
+  const projectedMonthlyExpensesAdjusted = projectedMonthlyExpensesBase + additionalCostInflation;
+  const projectedMonthlyNet = projectedMonthlySales - projectedMonthlyExpensesAdjusted;
+  const isProjectedMarginPositive = projectedMonthlyNet >= 0;
 
   return (
     <div className="space-y-6 pb-20 sm:pb-8">
@@ -223,6 +262,162 @@ export const ReporteTab: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* STRATEGIC PREDICTIVE & PROMOTIONS MODULE (Recomendación 2) */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.16 }}
+        className="bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-5 sm:p-6 shadow-xs space-y-5"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 dark:border-stone-800 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="p-2 rounded-xl text-white shadow-xs"
+              style={{ backgroundColor: paletteConfig.primaryHex }}
+            >
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-stone-900 dark:text-white">
+                  Análisis Predictivo & Recomendaciones Comerciales
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  Modelo Estratégico
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                Proyecciones a 30 días, simulación de costos anuales (salario mínimo e inflación) y detección de platos de baja rotación.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Card A: Cost Variation & 30-Day Financial Projection */}
+          <div className="p-4 rounded-xl bg-stone-50/80 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-stone-500 dark:text-stone-400" />
+                <h4 className="text-xs font-bold text-stone-900 dark:text-white uppercase tracking-wider">
+                  Simulador de Costos y Salario Mínimo
+                </h4>
+              </div>
+              <span className="text-xs font-mono font-bold text-stone-700 dark:text-stone-300">
+                +{costIncreasePercent}% anual
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-stone-500 dark:text-stone-400 mb-1.5">
+                Ajuste estimado de costos operativos / salario mínimo:
+              </label>
+              <div className="flex items-center gap-2">
+                {[5, 10, 15, 20].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => setCostIncreasePercent(pct)}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      costIncreasePercent === pct
+                        ? 'bg-stone-900 dark:bg-white text-white dark:text-stone-950 border-stone-900 dark:border-white shadow-xs'
+                        : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700'
+                    }`}
+                  >
+                    +{pct}%
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-stone-200/70 dark:border-stone-800 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500 dark:text-stone-400">Ventas proyectadas (30 días):</span>
+                <span className="font-mono font-bold text-stone-900 dark:text-white">
+                  {formatCOP(projectedMonthlySales)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500 dark:text-stone-400">
+                  Gastos proyectados (con +{costIncreasePercent}%):
+                </span>
+                <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                  {formatCOP(projectedMonthlyExpensesAdjusted)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-stone-200/50 dark:border-stone-800/80">
+                <span className="font-bold text-stone-800 dark:text-stone-200">Margen neto proyectado:</span>
+                <span
+                  className={`font-mono font-extrabold text-sm ${
+                    isProjectedMarginPositive
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  {formatCOP(projectedMonthlyNet)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card B: Commercial Recommendations for Low Rotation Dishes */}
+          <div className="p-4 rounded-xl bg-stone-50/80 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 space-y-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-amber-500" />
+                  <h4 className="text-xs font-bold text-stone-900 dark:text-white uppercase tracking-wider">
+                    Recomendaciones Comerciales Automáticas
+                  </h4>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                  Baja Rotación
+                </span>
+              </div>
+
+              {lowRotationDish ? (
+                <div className="space-y-2.5">
+                  <div className="p-3 rounded-lg bg-white dark:bg-stone-800 border border-amber-200/60 dark:border-amber-900/40 text-xs">
+                    <div className="flex items-center justify-between font-bold text-stone-900 dark:text-white mb-1">
+                      <span>Plato con menor salida:</span>
+                      <span className="text-amber-600 dark:text-amber-400">
+                        {capitalizeFirst(lowRotationDish[0])}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-relaxed">
+                      Ha registrado <strong>{lowRotationDish[1]} porciones</strong> vendidas.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 text-xs space-y-1">
+                    <div className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                      <Lightbulb className="w-4 h-4 shrink-0" />
+                      <span>Estrategia de Promoción Sugerida:</span>
+                    </div>
+                    <p className="text-[11px] text-stone-700 dark:text-stone-300 leading-relaxed">
+                      Activar promoción especial de <strong>«{capitalizeFirst(lowRotationDish[0])} en Combo con Guarnición o 15% Descuento en Horas Valle»</strong> para dinamizar el inventario de materias primas en bodega antes de su vencimiento.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 text-center text-xs text-stone-400">
+                  No se detectaron platos con déficit de rotación.
+                </div>
+              )}
+            </div>
+
+            {highRotationDish && (
+              <div className="pt-2 border-t border-stone-200/70 dark:border-stone-800 flex items-center justify-between text-[11px] text-stone-500 dark:text-stone-400">
+                <span>Plato estrella (mayor salida):</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {capitalizeFirst(highRotationDish[0])} ({highRotationDish[1]} unid.)
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };

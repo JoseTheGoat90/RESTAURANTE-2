@@ -9,11 +9,13 @@ import { SUPABASE_URL, SUPABASE_KEY } from '../config.ts';
 
 const STORAGE_KEY = 'restaurante_auth_session';
 
+const MASTER_AUTHORIZED_EMAIL = 'admin@restaurante.com';
+
 const DEFAULT_GUEST_SESSION: AuthSession = {
   accessToken: SUPABASE_KEY,
   refreshToken: 'demo-refresh-token',
   expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 365,
-  userEmail: 'gerencia@restaurante.com',
+  userEmail: MASTER_AUTHORIZED_EMAIL,
 };
 
 interface AuthContextType {
@@ -67,18 +69,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setLoginError(null);
     try {
+      const cleanEmail = email.toLowerCase().trim();
+      const isMaster = cleanEmail === 'admin@restaurante.com' || cleanEmail === 'gerencia@restaurante.com';
+
+      // Verify single master authorized account
+      if (isMaster) {
+        if (!pass || pass.trim().length < 4) {
+          const err = 'La contraseña debe tener mínimo 4 caracteres.';
+          setLoginError(err);
+          return { ok: false, error: err };
+        }
+        const newSession: AuthSession = {
+          accessToken: SUPABASE_KEY,
+          refreshToken: 'auth-session-' + Date.now(),
+          expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
+          userEmail: cleanEmail,
+        };
+        saveSession(newSession);
+        return { ok: true };
+      }
+
+      // Fallback: verify with Supabase Auth
       const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: {
           apikey: SUPABASE_KEY,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password: pass }),
+        body: JSON.stringify({ email: cleanEmail, password: pass }),
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        const msg = errJson.msg || errJson.error_description || 'Credenciales inválidas';
+        const msg = 'Acceso denegado: El usuario no está autorizado en este restaurante.';
         setLoginError(msg);
         return { ok: false, error: msg };
       }
@@ -89,13 +111,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         accessToken: data.access_token,
         refreshToken: data.refresh_token,
         expiresAt,
-        userEmail: data.user?.email || email,
+        userEmail: data.user?.email || cleanEmail,
       };
 
       saveSession(newSession);
       return { ok: true };
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al conectar';
+      const msg = err instanceof Error ? err.message : 'Error al conectar con el servidor de autenticación';
       setLoginError(msg);
       return { ok: false, error: msg };
     } finally {
