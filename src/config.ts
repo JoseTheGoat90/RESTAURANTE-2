@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export const SUPABASE_URL = 'https://nqytcqambzznviybguxf.supabase.co';
-export const SUPABASE_KEY = 'sb_publishable_Xyql8LJU5Ge81le-DXM3fg_8RN0iJmy';
-export const DEFAULT_CHAT_URL = 'https://luchofriaz123.app.n8n.cloud/webhook/panel-chat';
+export const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || 'https://nqytcqambzznviybguxf.supabase.co';
+export const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_KEY as string) || 'sb_publishable_Xyql8LJU5Ge81le-DXM3fg_8RN0iJmy';
+export const DEFAULT_CHAT_URL = (import.meta.env.VITE_CHAT_URL as string) || 'https://luchofriaz123.app.n8n.cloud/webhook/panel-chat';
 
 export function getChatUrl(): string {
   try {

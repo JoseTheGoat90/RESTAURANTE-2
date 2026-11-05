@@ -1,14 +1,14 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
-import {defineConfig} from 'vite';
+import { fileURLToPath, URL } from 'node:url';
+import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': fileURLToPath(new URL('.', import.meta.url)),
       },
     },
     server: {
@@ -16,6 +16,9 @@ export default defineConfig(() => {
       port: 3000,
       host: '0.0.0.0',
       allowedHosts: true as const,
+    },
+    build: {
+      chunkSizeWarningLimit: 1000,
     },
   };
 });
