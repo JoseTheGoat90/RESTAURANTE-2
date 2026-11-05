@@ -32,16 +32,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [session, setSession] = useState<AuthSession | null>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as AuthSession;
-        if (parsed.accessToken) return parsed;
-      }
-    } catch {}
-    return DEFAULT_GUEST_SESSION;
-  });
+  // Siempre iniciar sin sesion para mostrar la pantalla de login al entrar
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 

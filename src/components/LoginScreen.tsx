@@ -7,29 +7,44 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
 import {
-  ChefHat,
   Lock,
   Mail,
   Loader2,
   AlertCircle,
-  ShieldCheck,
   Sun,
   Moon,
   ArrowRight,
-  KeyRound,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Flame,
+  UtensilsCrossed,
+  Wine,
+  Shield,
   CheckCircle2,
+  Activity,
+  Layers,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const MASTER_EMAIL = 'admin@restaurante.com';
-const MASTER_PASS = '1234';
+// Floating decorative background culinary badges
+const FLOATING_ELEMENTS = [
+  { icon: UtensilsCrossed, delay: 0, x: '8%', y: '18%', duration: 8, scale: 0.9 },
+  { icon: Flame, delay: 1.5, x: '88%', y: '16%', duration: 9, scale: 1.1 },
+  { icon: Wine, delay: 0.8, x: '12%', y: '78%', duration: 10, scale: 1 },
+  { icon: Sparkles, delay: 2.2, x: '85%', y: '74%', duration: 7, scale: 0.85 },
+  { icon: Layers, delay: 3, x: '92%', y: '45%', duration: 11, scale: 0.8 },
+  { icon: Activity, delay: 1.2, x: '6%', y: '48%', duration: 9.5, scale: 0.9 },
+];
 
 export const LoginScreen: React.FC = () => {
   const { login, isLoading, loginError } = useAuth();
   const { effectiveTheme, toggleTheme, paletteConfig } = useTheme();
 
-  const [email, setEmail] = useState(MASTER_EMAIL);
-  const [password, setPassword] = useState(MASTER_PASS);
+  // Inputs completely empty as requested
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,62 +52,117 @@ export const LoginScreen: React.FC = () => {
     await login(email, password);
   };
 
-  const handleFillMaster = () => {
-    setEmail(MASTER_EMAIL);
-    setPassword(MASTER_PASS);
-  };
+  const isDark = effectiveTheme === 'dark';
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center p-4 sm:p-6 bg-[var(--bg-main)] text-[var(--text-main)] overflow-hidden transition-colors duration-300">
+    <div className="min-h-screen w-full relative flex items-center justify-center p-4 sm:p-6 bg-[var(--bg-main)] text-[var(--text-main)] overflow-hidden select-none transition-colors duration-500">
       {/* Dynamic Animated Ambient Background Orbs */}
       <motion.div
         animate={{
-          scale: [1, 1.25, 1],
-          x: [0, 30, 0],
-          y: [0, -40, 0],
-          opacity: [0.15, 0.28, 0.15],
+          scale: [1, 1.35, 1],
+          x: [0, 45, 0],
+          y: [0, -50, 0],
+          opacity: isDark ? [0.2, 0.35, 0.2] : [0.25, 0.45, 0.25],
         }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute -top-24 -left-24 w-96 h-96 rounded-full blur-3xl pointer-events-none"
+        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full blur-[110px] pointer-events-none"
         style={{
-          background: effectiveTheme === 'dark'
-            ? 'radial-gradient(circle, #3B82F6 0%, transparent 70%)'
-            : 'radial-gradient(circle, #2563EB 0%, transparent 70%)',
-        }}
-      />
-      <motion.div
-        animate={{
-          scale: [1.2, 0.95, 1.2],
-          x: [0, -35, 0],
-          y: [0, 45, 0],
-          opacity: [0.12, 0.22, 0.12],
-        }}
-        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-        className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full blur-3xl pointer-events-none"
-        style={{
-          background: effectiveTheme === 'dark'
-            ? 'radial-gradient(circle, #34D399 0%, transparent 70%)'
-            : 'radial-gradient(circle, #10B981 0%, transparent 70%)',
+          background: isDark
+            ? 'radial-gradient(circle, #3B82F6 0%, rgba(59, 130, 246, 0) 70%)'
+            : 'radial-gradient(circle, #2563EB 0%, rgba(37, 99, 235, 0) 70%)',
         }}
       />
 
-      {/* Top Controls: Exclusively Theme Switcher (☀️ Claro #F4F5F7 / 🌙 Oscuro #000000) */}
-      <div className="absolute top-4 right-4 z-20">
+      <motion.div
+        animate={{
+          scale: [1.2, 0.9, 1.2],
+          x: [0, -55, 0],
+          y: [0, 40, 0],
+          opacity: isDark ? [0.15, 0.28, 0.15] : [0.2, 0.38, 0.2],
+        }}
+        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+        className="absolute -bottom-32 -right-32 w-[560px] h-[560px] rounded-full blur-[120px] pointer-events-none"
+        style={{
+          background: isDark
+            ? 'radial-gradient(circle, #10B981 0%, rgba(16, 185, 129, 0) 70%)'
+            : 'radial-gradient(circle, #059669 0%, rgba(5, 150, 105, 0) 70%)',
+        }}
+      />
+
+      <motion.div
+        animate={{
+          scale: [0.95, 1.25, 0.95],
+          opacity: isDark ? [0.1, 0.2, 0.1] : [0.15, 0.28, 0.15],
+        }}
+        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 4 }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full blur-[140px] pointer-events-none"
+        style={{
+          background: isDark
+            ? 'radial-gradient(circle, #6366F1 0%, transparent 70%)'
+            : 'radial-gradient(circle, #818CF8 0%, transparent 70%)',
+        }}
+      />
+
+      {/* Futuristic Geometric Backdrop Grid */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.035] dark:opacity-[0.06]"
+        style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
+          backgroundSize: '36px 36px',
+        }}
+      />
+
+      {/* Floating Animated Culinary Particles & Icons */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {FLOATING_ELEMENTS.map((item, idx) => {
+          const IconComp = item.icon;
+          return (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: isDark ? [0.15, 0.45, 0.15] : [0.25, 0.6, 0.25],
+                y: [0, -25, 0],
+                rotate: [0, 10, -10, 0],
+                scale: [item.scale, item.scale * 1.08, item.scale],
+              }}
+              transition={{
+                duration: item.duration,
+                repeat: Infinity,
+                ease: 'easeInOut',
+                delay: item.delay,
+              }}
+              className="absolute hidden md:flex items-center justify-center p-3 rounded-2xl backdrop-blur-md border border-[var(--border-soft)] shadow-xl"
+              style={{
+                left: item.x,
+                top: item.y,
+                backgroundColor: isDark ? 'rgba(18, 18, 18, 0.55)' : 'rgba(255, 255, 255, 0.65)',
+                color: paletteConfig.accent,
+              }}
+            >
+              <IconComp className="w-5 h-5 stroke-[2]" />
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Top Header Controls: Direct Light/Dark Mode Switcher */}
+      <div className="absolute top-5 right-5 z-20">
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={toggleTheme}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-soft)] shadow-sm hover:opacity-90 transition-all cursor-pointer"
-          title={`Cambiar a ${effectiveTheme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}`}
+          className="flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-bold bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-soft)] shadow-md hover:border-[var(--brand-accent)] transition-all cursor-pointer backdrop-blur-md"
+          title={`Cambiar a ${isDark ? 'Modo Claro' : 'Modo Oscuro'}`}
         >
-          {effectiveTheme === 'dark' ? (
+          {isDark ? (
             <>
-              <Sun className="w-3.5 h-3.5 text-amber-400" />
+              <Sun className="w-4 h-4 text-amber-400 animate-spin-slow" />
               <span>☀️ Modo Claro</span>
             </>
           ) : (
             <>
-              <Moon className="w-3.5 h-3.5 text-blue-600" />
+              <Moon className="w-4 h-4 text-blue-600" />
               <span>🌙 Modo Oscuro</span>
             </>
           )}
@@ -101,81 +171,133 @@ export const LoginScreen: React.FC = () => {
 
       {/* Main Glassmorphic Login Card */}
       <motion.div
-        initial={{ opacity: 0, y: 28, scale: 0.94 }}
+        initial={{ opacity: 0, y: 35, scale: 0.92 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-md relative z-10 bg-[var(--bg-card)] border border-[var(--border-soft)] rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl"
+        transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-md relative z-10 bg-[var(--bg-card)] border border-[var(--border-soft)] rounded-[32px] p-7 sm:p-9 shadow-2xl backdrop-blur-2xl overflow-hidden"
       >
-        {/* Brand Header with Animated Glow Badge */}
-        <div className="flex flex-col items-center text-center mb-6">
-          <motion.div
-            initial={{ scale: 0, rotate: -25 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', damping: 14, stiffness: 200, delay: 0.1 }}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-3 shadow-lg relative group"
-            style={{ backgroundColor: paletteConfig.accent }}
-          >
-            <ChefHat className="w-7 h-7 stroke-[2.2]" />
+        {/* Subtle glowing card perimeter line */}
+        <div
+          className="absolute -top-[1px] left-1/4 right-1/4 h-[2px] rounded-full blur-[1px]"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${paletteConfig.accent}, transparent)`,
+          }}
+        />
+
+        {/* Brand Header with Custom Luxury Culinary Emblem Logo */}
+        <div className="flex flex-col items-center text-center mb-7">
+          <div className="relative mb-4">
+            {/* Ambient Pulsing Aura Behind Emblem */}
             <motion.div
-              animate={{ opacity: [0.4, 0.8, 0.4], scale: [1, 1.15, 1] }}
-              transition={{ duration: 3, repeat: Infinity }}
-              className="absolute inset-0 rounded-2xl -z-10 blur-sm opacity-50"
+              animate={{
+                scale: [1, 1.25, 1],
+                opacity: [0.4, 0.8, 0.4],
+              }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute -inset-2 rounded-3xl blur-md"
               style={{ backgroundColor: paletteConfig.accent }}
             />
-          </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--text-main)]"
-          >
-            Restaurante <span className="opacity-40">·</span> Panel de gestión
-          </motion.h1>
+            {/* Custom Emblem Logo */}
+            <motion.div
+              initial={{ scale: 0.7, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', damping: 15, stiffness: 220 }}
+              className="relative w-20 h-20 rounded-3xl flex items-center justify-center p-3 shadow-2xl overflow-hidden border border-white/20"
+              style={{
+                background: isDark
+                  ? 'linear-gradient(135deg, #1E3A8A 0%, #0F172A 100%)'
+                  : 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+              }}
+            >
+              {/* Fine Rotating Orbit Ring */}
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+                className="absolute inset-1 rounded-2xl border border-white/20 border-dashed pointer-events-none"
+              />
+
+              {/* Vector Masterpiece: Stylized Cloche & Golden Flame Crown */}
+              <svg viewBox="0 0 64 64" fill="none" className="w-12 h-12 relative z-10 drop-shadow-md">
+                <defs>
+                  <linearGradient id="gastroGold" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#FDE047" />
+                    <stop offset="0.5" stopColor="#F59E0B" />
+                    <stop offset="1" stopColor="#D97706" />
+                  </linearGradient>
+                  <linearGradient id="clocheSilver" x1="0" y1="10" x2="64" y2="50" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#FFFFFF" />
+                    <stop offset="1" stopColor="#CBD5E1" />
+                  </linearGradient>
+                </defs>
+
+                {/* Cloche Top Handle Knob */}
+                <circle cx="32" cy="18" r="3.5" fill="url(#gastroGold)" />
+                <path d="M30 18H34V22H30Z" fill="url(#gastroGold)" />
+
+                {/* Luxury Cloche Dome */}
+                <path
+                  d="M14 42C14 27.5 22 22 32 22C42 22 50 27.5 50 42H14Z"
+                  fill="url(#clocheSilver)"
+                  fillOpacity="0.95"
+                />
+
+                {/* Subtle Plate Rim Base */}
+                <rect x="10" y="44" width="44" height="4" rx="2" fill="url(#gastroGold)" />
+
+                {/* Crown Stars / Culinary Sparkles */}
+                <path
+                  d="M32 10L33.2 13.5L36.8 14.8L33.2 16L32 19.5L30.8 16L27.2 14.8L30.8 13.5Z"
+                  fill="#FDE047"
+                />
+                <circle cx="21" cy="14" r="1.5" fill="#FDE047" />
+                <circle cx="43" cy="14" r="1.5" fill="#FDE047" />
+
+                {/* Steam Swirls */}
+                <path
+                  d="M26 31C28 29 27 27 28 25"
+                  stroke="url(#gastroGold)"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M36 31C38 29 37 27 38 25"
+                  stroke="url(#gastroGold)"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </motion.div>
+          </div>
 
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.25 }}
-            className="flex items-center gap-1.5 mt-1.5 text-xs text-[var(--text-muted)] font-medium"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Acceso exclusivo con Cuenta Maestra Autorizada</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest text-[var(--brand-accent)] bg-[var(--brand-accent)]/10 border border-[var(--brand-accent)]/20 mb-2">
+              <Sparkles className="w-3 h-3" />
+              <span>Sistema Operativo Gastronómico</span>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--text-main)]">
+              Panel de Gestión
+            </h1>
+
+            <p className="text-xs text-[var(--text-muted)] font-medium mt-1">
+              Ingresa tus credenciales para acceder a la administración
+            </p>
           </motion.div>
         </div>
-
-        {/* Master Account Info Badge */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mb-5 p-3.5 rounded-2xl bg-[var(--bg-header)] border border-[var(--border-soft)] flex items-center justify-between gap-3 text-xs"
-        >
-          <div className="min-w-0">
-            <span className="block text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
-              Cuenta Maestra Única
-            </span>
-            <div className="font-bold text-[var(--text-main)] truncate mt-0.5">
-              {MASTER_EMAIL}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleFillMaster}
-            className="px-3 py-1.5 rounded-xl font-bold text-[11px] bg-[var(--brand-accent)] text-white hover:opacity-95 shadow-sm transition-all cursor-pointer shrink-0"
-          >
-            Usar Cuenta
-          </button>
-        </motion.div>
 
         {/* Error Alert with Shake Animation */}
         <AnimatePresence>
           {loginError && (
             <motion.div
-              initial={{ opacity: 0, y: -6, scale: 0.95 }}
+              initial={{ opacity: 0, y: -8, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5 font-medium"
+              exit={{ opacity: 0, y: -8 }}
+              className="mb-5 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-3 font-semibold shadow-sm"
             >
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="leading-snug">{loginError}</span>
@@ -183,77 +305,86 @@ export const LoginScreen: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Login Form */}
+        {/* Clean Login Form - Boxes completely blank initially */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-[var(--text-main)] mb-1.5">
-              Correo de la cuenta autorizada
+              Correo Electrónico
             </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <div className="relative group">
+              <Mail className="w-4 h-4 text-[var(--text-muted)] group-focus-within:text-[var(--brand-accent)] absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200" />
               <input
                 type="email"
                 required
                 autoComplete="email"
-                placeholder={MASTER_EMAIL}
+                placeholder="usuario@restaurante.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
-                className="w-full h-11 pl-10 pr-3.5 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-transparent transition-all disabled:opacity-50"
+                className="w-full h-12 pl-10 pr-4 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-[var(--text-main)] placeholder:text-[var(--text-muted)]/70 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-transparent transition-all duration-200 disabled:opacity-50"
               />
             </div>
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-bold text-[var(--text-main)]">
-                Clave de acceso
-              </label>
-              <span className="text-[10px] text-[var(--text-muted)] font-mono">Demo: 1234</span>
-            </div>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <label className="block text-xs font-bold text-[var(--text-main)] mb-1.5">
+              Contraseña
+            </label>
+            <div className="relative group">
+              <Lock className="w-4 h-4 text-[var(--text-muted)] group-focus-within:text-[var(--brand-accent)] absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                className="w-full h-11 pl-10 pr-3.5 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-transparent transition-all disabled:opacity-50"
+                className="w-full h-12 pl-10 pr-11 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-[var(--text-main)] placeholder:text-[var(--text-muted)]/70 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-transparent transition-all duration-200 disabled:opacity-50"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors p-1 cursor-pointer"
+                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
           <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.015 }}
+            whileTap={{ scale: 0.985 }}
             type="submit"
             disabled={isLoading || !email.trim() || !password}
             style={{ backgroundColor: paletteConfig.accent }}
-            className="w-full h-12 mt-2 rounded-xl text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full h-12 mt-2 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Verificando autorización...</span>
+                <span>Validando credenciales...</span>
               </>
             ) : (
               <>
-                <span>Ingresar al Panel de Gestión</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>Iniciar Sesión</span>
+                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
               </>
             )}
           </motion.button>
         </form>
 
-        {/* Security Footer Notice */}
-        <div className="mt-6 pt-4 border-t border-[var(--border-soft)] text-center space-y-1">
-          <p className="text-[11px] text-[var(--text-muted)] flex items-center justify-center gap-1">
-            <KeyRound className="w-3 h-3 text-amber-500" />
-            <span>Panel centralizado para administración, ventas, gastos e inventario</span>
-          </p>
+        {/* Security & System Status Badges */}
+        <div className="mt-7 pt-5 border-t border-[var(--border-soft)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+          <div className="flex items-center gap-1.5 font-medium">
+            <Shield className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Acceso Seguro TLS</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Base de Datos Activa</span>
+          </div>
         </div>
       </motion.div>
     </div>

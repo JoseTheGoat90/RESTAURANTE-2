@@ -20,10 +20,15 @@ export const Header: React.FC = () => {
         {/* Brand Zone */}
         <div className="flex items-center gap-3 min-w-0">
           <div
-            className="w-10 h-10 rounded-xl text-white flex items-center justify-center shrink-0 shadow-sm transition-colors duration-200"
+            className="w-10 h-10 rounded-xl text-white flex items-center justify-center shrink-0 shadow-sm transition-colors duration-200 relative overflow-hidden"
             style={{ backgroundColor: paletteConfig.accent }}
           >
-            <ChefHat className="w-5 h-5 stroke-[2.2]" />
+            <svg viewBox="0 0 64 64" fill="none" className="w-6 h-6">
+              <circle cx="32" cy="18" r="3" fill="#FDE047" />
+              <path d="M14 42C14 27.5 22 22 32 22C42 22 50 27.5 50 42H14Z" fill="#FFFFFF" fillOpacity="0.95" />
+              <rect x="11" y="44" width="42" height="4" rx="2" fill="#FDE047" />
+              <path d="M32 10L33 13.5L36.5 14.5L33 15.5L32 19L31 15.5L27.5 14.5L31 13.5Z" fill="#FDE047" />
+            </svg>
           </div>
           <div className="min-w-0">
             <h1 className="text-sm sm:text-base font-bold text-[var(--text-main)] tracking-tight truncate">
