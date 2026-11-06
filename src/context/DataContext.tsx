@@ -187,82 +187,71 @@ interface DataContextType {
   addConceptoGasto: (nombre: string, categoria: string) => void;
 }
 
+const DEMO_PREFIX = 'restaurante_demo_';
+function readDemo<T>(key: string, initial: T): T {
+  try {
+    const s = localStorage.getItem(DEMO_PREFIX + key);
+    if (s) return JSON.parse(s) as T;
+  } catch {}
+  return initial;
+}
+function writeDemo(key: string, value: unknown) {
+  try {
+    localStorage.setItem(DEMO_PREFIX + key, JSON.stringify(value));
+  } catch {}
+}
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { getValidAccessToken, handleAuthError } = useAuth();
+  const { getValidAccessToken, handleAuthError, isDemo, session } = useAuth();
 
-  const [ingredientes, setIngredientes] = useState<Ingrediente[]>(() => {
-    try {
-      const s = localStorage.getItem('restaurante_ingredientes');
-      if (s) return JSON.parse(s);
-    } catch {}
-    return INITIAL_INGREDIENTES;
-  });
-
-  const [recetas, setRecetas] = useState<Receta[]>(() => {
-    try {
-      const s = localStorage.getItem('restaurante_recetas');
-      if (s) return JSON.parse(s);
-    } catch {}
-    return INITIAL_RECETAS;
-  });
-
-  const [ventas, setVentas] = useState<Venta[]>(() => {
-    try {
-      const s = localStorage.getItem('restaurante_ventas');
-      if (s) return JSON.parse(s);
-    } catch {}
-    return INITIAL_VENTAS;
-  });
-
-  const [gastos, setGastos] = useState<Gasto[]>(() => {
-    try {
-      const s = localStorage.getItem('restaurante_gastos');
-      if (s) return JSON.parse(s);
-    } catch {}
-    return INITIAL_GASTOS;
-  });
-
-  const [conceptosGasto, setConceptosGasto] = useState<ConceptoGasto[]>(() => {
-    try {
-      const s = localStorage.getItem('restaurante_conceptos');
-      if (s) return JSON.parse(s);
-    } catch {}
-    return INITIAL_CONCEPTOS_GASTO;
-  });
-
-  const [movimientos, setMovimientos] = useState<MovimientoInventario[]>(() => {
-    try {
-      const s = localStorage.getItem('restaurante_movimientos');
-      if (s) return JSON.parse(s);
-    } catch {}
-    return INITIAL_MOVIMIENTOS;
-  });
+  // En modo real los datos vienen SOLO de Supabase. Los datos de ejemplo existen
+  // únicamente en modo demo y se guardan aparte (prefijo restaurante_demo_).
+  const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
+  const [recetas, setRecetas] = useState<Receta[]>([]);
+  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [gastos, setGastos] = useState<Gasto[]>([]);
+  const [conceptosGasto, setConceptosGasto] = useState<ConceptoGasto[]>([]);
+  const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [notification, setNotification] = useState<NotificationState | null>(null);
 
+  // Al cambiar de usuario o de modo: limpiar y cargar la fuente correcta
   useEffect(() => {
-    localStorage.setItem('restaurante_ingredientes', JSON.stringify(ingredientes));
-  }, [ingredientes]);
-  useEffect(() => {
-    localStorage.setItem('restaurante_recetas', JSON.stringify(recetas));
-  }, [recetas]);
-  useEffect(() => {
-    localStorage.setItem('restaurante_ventas', JSON.stringify(ventas));
-  }, [ventas]);
-  useEffect(() => {
-    localStorage.setItem('restaurante_gastos', JSON.stringify(gastos));
-  }, [gastos]);
-  useEffect(() => {
-    localStorage.setItem('restaurante_conceptos', JSON.stringify(conceptosGasto));
-  }, [conceptosGasto]);
-  useEffect(() => {
-    localStorage.setItem('restaurante_movimientos', JSON.stringify(movimientos));
-  }, [movimientos]);
+    try {
+      // Restos de versiones anteriores que mezclaban datos de ejemplo con reales
+      ['ingredientes', 'recetas', 'ventas', 'gastos', 'conceptos', 'movimientos'].forEach((k) =>
+        localStorage.removeItem('restaurante_' + k)
+      );
+    } catch {}
+    if (isDemo) {
+      setIngredientes(readDemo('ingredientes', INITIAL_INGREDIENTES));
+      setRecetas(readDemo('recetas', INITIAL_RECETAS));
+      setVentas(readDemo('ventas', INITIAL_VENTAS));
+      setGastos(readDemo('gastos', INITIAL_GASTOS));
+      setConceptosGasto(readDemo('conceptos', INITIAL_CONCEPTOS_GASTO));
+      setMovimientos(readDemo('movimientos', INITIAL_MOVIMIENTOS));
+    } else {
+      setIngredientes([]);
+      setRecetas([]);
+      setVentas([]);
+      setGastos([]);
+      setConceptosGasto([]);
+      setMovimientos([]);
+    }
+    setLastError(null);
+  }, [isDemo, session?.userEmail]);
+
+  useEffect(() => { if (isDemo) writeDemo('ingredientes', ingredientes); }, [isDemo, ingredientes]);
+  useEffect(() => { if (isDemo) writeDemo('recetas', recetas); }, [isDemo, recetas]);
+  useEffect(() => { if (isDemo) writeDemo('ventas', ventas); }, [isDemo, ventas]);
+  useEffect(() => { if (isDemo) writeDemo('gastos', gastos); }, [isDemo, gastos]);
+  useEffect(() => { if (isDemo) writeDemo('conceptos', conceptosGasto); }, [isDemo, conceptosGasto]);
+  useEffect(() => { if (isDemo) writeDemo('movimientos', movimientos); }, [isDemo, movimientos]);
 
   const reporteHoy: ReporteData = React.useMemo(() => {
     const today = getBogotaTodayDateString();
@@ -322,64 +311,62 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNotification(null);
   }, []);
 
+  /** Carga desde Supabase. En modo real los datos remotos reemplazan siempre a los locales (aunque vengan vacíos). */
+  const fetchInto = useCallback(
+    async (parts: Array<'ing' | 'rec' | 'ven' | 'gas' | 'con' | 'mov'>) => {
+      if (isDemo || !session) return;
+      const token = await getValidAccessToken();
+      if (!token) return;
+      const opts = { token, onAuthError: handleAuthError };
+      const jobs: Record<string, () => Promise<void>> = {
+        ing: async () => setIngredientes(await fetchIngredientes(opts)),
+        rec: async () => setRecetas(await fetchRecetas(opts)),
+        ven: async () => setVentas(await fetchVentas(50, opts)),
+        gas: async () => setGastos(await fetchGastos(50, opts)),
+        con: async () => setConceptosGasto(await fetchConceptosGasto(opts)),
+        mov: async () => setMovimientos(await fetchMovimientosInventario(50, opts)),
+      };
+      const results = await Promise.allSettled(parts.map((p) => jobs[p]()));
+      const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+      setLastError(
+        failed.length
+          ? `No se pudieron cargar algunos datos: ${failed[0].reason instanceof Error ? failed[0].reason.message : 'error de conexión'}`
+          : null
+      );
+    },
+    [isDemo, session, getValidAccessToken, handleAuthError]
+  );
+
   const loadAllData = useCallback(async () => {
-    const token = await getValidAccessToken();
-    if (!token) return;
-
+    if (isDemo || !session) return;
     setIsLoading(true);
-    setLastError(null);
-    const opts = { token, onAuthError: handleAuthError };
-
+    setIsRefreshing(true);
     try {
-      const [remoteIng, remoteRec, remoteVen, remoteGas, remoteCon, remoteMov] = await Promise.allSettled([
-        fetchIngredientes(opts),
-        fetchRecetas(opts),
-        fetchVentas(50, opts),
-        fetchGastos(50, opts),
-        fetchConceptosGasto(opts),
-        fetchMovimientosInventario(50, opts),
-      ]);
-
-      if (remoteIng.status === 'fulfilled' && remoteIng.value.length > 0) setIngredientes(remoteIng.value);
-      if (remoteRec.status === 'fulfilled' && remoteRec.value.length > 0) setRecetas(remoteRec.value);
-      if (remoteVen.status === 'fulfilled' && remoteVen.value.length > 0) setVentas(remoteVen.value);
-      if (remoteGas.status === 'fulfilled' && remoteGas.value.length > 0) setGastos(remoteGas.value);
-      if (remoteCon.status === 'fulfilled' && remoteCon.value.length > 0) setConceptosGasto(remoteCon.value);
-      if (remoteMov.status === 'fulfilled' && remoteMov.value.length > 0) setMovimientos(remoteMov.value);
-    } catch {} finally {
+      await fetchInto(['ing', 'rec', 'ven', 'gas', 'con', 'mov']);
+    } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
-  }, [getValidAccessToken, handleAuthError]);
+  }, [isDemo, session, fetchInto]);
 
-  const reloadVentasEInventario = useCallback(async () => {
-    const token = await getValidAccessToken();
-    const opts = { token, onAuthError: handleAuthError };
-    try {
-      const [v, i, m] = await Promise.allSettled([
-        fetchVentas(50, opts),
-        fetchIngredientes(opts),
-        fetchMovimientosInventario(50, opts),
-      ]);
-      if (v.status === 'fulfilled' && v.value.length > 0) setVentas(v.value);
-      if (i.status === 'fulfilled' && i.value.length > 0) setIngredientes(i.value);
-      if (m.status === 'fulfilled' && m.value.length > 0) setMovimientos(m.value);
-    } catch {}
-  }, [getValidAccessToken, handleAuthError]);
+  const reloadVentasEInventario = useCallback(() => fetchInto(['ven', 'ing', 'mov']), [fetchInto]);
+  const reloadGastos = useCallback(() => fetchInto(['gas', 'con', 'ing']), [fetchInto]);
 
-  const reloadGastos = useCallback(async () => {
-    const token = await getValidAccessToken();
-    const opts = { token, onAuthError: handleAuthError };
+  /** Ejecuta una operación en Supabase y devuelve su resultado real (nunca un éxito simulado). */
+  const runRemote = async (
+    call: (opts: { token: string; onAuthError: () => void }) => Promise<RpcResult>,
+    reload: () => Promise<void>
+  ): Promise<RpcResult> => {
     try {
-      const [g, c, i] = await Promise.allSettled([
-        fetchGastos(50, opts),
-        fetchConceptosGasto(opts),
-        fetchIngredientes(opts),
-      ]);
-      if (g.status === 'fulfilled' && g.value.length > 0) setGastos(g.value);
-      if (c.status === 'fulfilled' && c.value.length > 0) setConceptosGasto(c.value);
-      if (i.status === 'fulfilled' && i.value.length > 0) setIngredientes(i.value);
-    } catch {}
-  }, [getValidAccessToken, handleAuthError]);
+      const token = await getValidAccessToken();
+      if (!token) return { ok: false, mensaje: 'Tu sesión expiró. Inicia sesión de nuevo.' };
+      const res = await call({ token, onAuthError: handleAuthError });
+      if (res.ok) await reload();
+      return res;
+    } catch (err) {
+      return { ok: false, mensaje: err instanceof Error ? err.message : 'No se pudo conectar con la base de datos.' };
+    }
+  };
 
   const executeSale = async (payload: {
     p_id: string;
@@ -387,14 +374,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     p_cantidad: number;
     estado?: EstadoComanda;
   }): Promise<RpcResult> => {
-    const token = await getValidAccessToken();
-    try {
-      const remote = await rpcRegistrarVenta(payload, { token, onAuthError: handleAuthError });
-      if (remote.ok) {
-        await reloadVentasEInventario();
-        return remote;
-      }
-    } catch {}
+    // Modo real: solo Supabase. Si falla, se informa el error y NO se guarda nada localmente.
+    if (!isDemo) return runRemote((o) => rpcRegistrarVenta(payload, o), reloadVentasEInventario);
 
     const platoLower = payload.p_plato.toLowerCase().trim();
     const matchingRecipes = recetas.filter((r) => r.plato.toLowerCase().trim() === platoLower);
@@ -466,14 +447,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Automatically register concept in catalog
     addConceptoGasto(payload.p_concepto, payload.p_categoria);
 
-    const token = await getValidAccessToken();
-    try {
-      const remote = await rpcRegistrarGasto(payload, { token, onAuthError: handleAuthError });
-      if (remote.ok) {
-        await reloadGastos();
-        return remote;
-      }
-    } catch {}
+    // Modo real: solo Supabase. Si falla, se informa el error y NO se guarda nada localmente.
+    if (!isDemo) return runRemote((o) => rpcRegistrarGasto(payload, o), reloadGastos);
 
     const today = getBogotaTodayDateString();
     const newGasto: Gasto = {
@@ -498,14 +473,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     p_delta: number;
     p_motivo: string;
   }): Promise<RpcResult> => {
-    const token = await getValidAccessToken();
-    try {
-      const remote = await rpcAjustarInventario(payload, { token, onAuthError: handleAuthError });
-      if (remote.ok) {
-        await reloadVentasEInventario();
-        return remote;
-      }
-    } catch {}
+    // Modo real: solo Supabase. Si falla, se informa el error y NO se guarda nada localmente.
+    if (!isDemo) return runRemote((o) => rpcAjustarInventario(payload, o), reloadVentasEInventario);
 
     setIngredientes((prev) =>
       prev.map((i) => {
@@ -538,14 +507,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     p_stock: number;
     p_minimo: number;
   }): Promise<RpcResult> => {
-    const token = await getValidAccessToken();
-    try {
-      const remote = await rpcCrearIngrediente(payload, { token, onAuthError: handleAuthError });
-      if (remote.ok) {
-        await reloadVentasEInventario();
-        return remote;
-      }
-    } catch {}
+    // Modo real: solo Supabase. Si falla, se informa el error y NO se guarda nada localmente.
+    if (!isDemo) return runRemote((o) => rpcCrearIngrediente(payload, o), reloadVentasEInventario);
 
     const newIng: Ingrediente = {
       ingrediente: payload.p_nombre.toLowerCase(),
@@ -579,6 +542,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [ingredientes]);
 
   const generar_reporte = useCallback(async (fecha?: string | null) => {
+    if (isDemo) return reporteHoy;
     const token = await getValidAccessToken();
     try {
       const res = await rpcReporte(fecha || null, { token, onAuthError: handleAuthError });
@@ -587,7 +551,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch {}
     return reporteHoy;
-  }, [getValidAccessToken, handleAuthError, reporteHoy]);
+  }, [isDemo, getValidAccessToken, handleAuthError, reporteHoy]);
 
   useEffect(() => {
     loadAllData();

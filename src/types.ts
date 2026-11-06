@@ -112,6 +112,7 @@ export interface AuthSession {
   refreshToken: string;
   expiresAt: number; // timestamp in ms
   userEmail: string;
+  isDemo?: boolean; // datos de ejemplo solo en este navegador; nunca toca la base
 }
 
 export interface ChatMessage {

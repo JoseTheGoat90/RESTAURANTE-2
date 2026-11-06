@@ -1,0 +1,279 @@
+[00:00] ¿Usted no va a decir al usuario ahí?
+[00:03] El poder tiene que poner a mayor por la mano.
+[00:05] ¿Aquí talicen eso?
+[00:07] O sea que, como sé que les quiere el usuario, ahí se trabaja en la primera mano.
+[00:10] Ok.
+[00:11] Capitalizan.
+[00:12] Bueno, entonces, es eso.
+[00:13] Entonces, aquí también nos hererá lo que nos gastamos por cada...
+[00:18] Aquí se ingresa por lo menos lo que se gastó en el pollo y va una serie de gastos.
+[00:22] Entonces, aquí tenemos...
+[00:24] Allí también el inventario de cuántas cantidades de pollo hay disponibles.
+[00:29] Pero ve que a lo mejor hay que entenderlo.
+[00:31] ¿Usted está generando una solución?
+[00:33] ¿Cierto?
+[00:34] ¿Qué está generando una solución?
+[00:35] Y como tal, no pueden transferir el trabajo de papel al trabajo digital.
+[00:41] O sea, el trabajo es lo que hay que evitar.
+[00:43] Entonces, por ejemplo, si hay una...
+[00:45] Aquí hay un ingrediente, ¿cierto?
+[00:47] Como con...
+[00:48] ¿Y aquí qué es el ingrediente de la persona?
+[00:50] Por lo menos, aquí hay un ingrediente, si es...
+[00:52] O sea, por lo menos.
+[00:53] Aquí no sería un ingrediente.
+[00:54] Bueno, aquí hay como tal.
+[00:56] Es toda categoría.
+[00:58] Los gastos son casi constantes.
+[01:01] A nivel de categorización.
+[01:07] O sea, o tú vas a escribir, por ejemplo, y decirle a la persona para el pollo.
+[01:10] O sea, en algún momento vas a volver a comprar pollo.
+[01:13] ¿Vas a poner a la persona y escribes por el pollo?
+[01:15] No.
+[01:16] Entonces aquí podrían que hacer...
+[01:17] O otros signos también, donde seleccionen...
+[01:19] O un buscador.
+[01:21] Si la persona quiere un signo y sale aquí y compra de pollo, compra de tu comprador.
+[01:24] Y quien selecciona.
+[01:25] Recuerden, ustedes están automatizando.
+[01:27] O sea, ustedes están quitándole trabajo a la persona que sea más rápido.
+[01:31] Mucho más eficiente.
+[01:32] O sea, compra de pollo hoy.
+[01:34] Compa de pollo más nuevo.
+[01:36] Compa de pollo mañana.
+[01:37] Compa de pollo...
+[01:38] ¡No marija!
+[01:39] Entonces, si hay una nueva...
+[01:41] Hay un nuevo tipo de compra que se agregue.
+[01:43] O sea, no está en lista agregar.
+[01:46] Y capitalizar.
+[01:47] ¿Cierto?
+[01:48] Entonces ahí, si vamos en verdad, automatizando procesos.
+[01:53] Ya viste.
+[01:54] Entonces, aquí también tenemos una parte de inventario.
+[01:57] Que lo dice cuánto pollo tenemos, cuánto pollo no tenemos.
+[02:01] Entonces aquí yo voy retando.
+[02:03] En el caso, por lo menos aquí.
+[02:05] Si por lo menos tenemos...
+[02:07] Vamos a ver un ejemplo.
+[02:08] Esto es como estopcia.
+[02:09] Sí.
+[02:10] Que tenemos unos cinco pollo.
+[02:11] Entonces, pues ya me dice que se va gastando.
+[02:13] Vamos retando aquí del inventario.
+[02:14] ¿Cuándo se gasta el pollo?
+[02:16] Cada vez que vamos vendiendo.
+[02:18] Cada vez que vende.
+[02:19] Entonces también...
+[02:20] ¿Y el directo de la reacción?
+[02:21] No.
+[02:22] ¿No es directo?
+[02:23] ¿No lo voy a vender con pollo o medio pollo, cierto?
+[02:26] No está directo porque si estuviera directo,
+[02:28] cuando vendemos a Canciller, automáticamente se va a estar acá.
+[02:31] Claro. Recuerden que estamos automatizando.
+[02:33] Ok.
+[02:34] Traten de buscar esa reacción si se puede.
+[02:38] O por lo menos con los elementos que se puedan.
+[02:40] Que si se vende acá, de una vez se resta acá.
+[02:43] Estamos automatizando.
+[02:44] Está bien.
+[02:45] Que incluso diga por qué.
+[02:46] Está la razón.
+[02:47] Hay un reporte.
+[02:48] Que diga, hombre, el azúcar va a hubo de 300 a...
+[02:52] 300 qué?
+[02:53] También qué?
+[02:55] 300 qué?
+[02:56] Unidades, libras.
+[02:57] Sí, grabamos kilogramos.
+[02:59] Puñados, arrobas.
+[03:01] Entonces, si bajamos de 300 libras, a 250,
+[03:05] que haya un consen...
+[03:06] Que diga ahí, porque se hicieron tantas...
+[03:08] Ah, no se vieron tantas...
+[03:10] Claro, claro.
+[03:11] Todo esto es en función también de un reporte final.
+[03:13] Incluso, incluso,
+[03:15] de un análisis,
+[03:17] de un análisis,
+[03:19] predictivo.
+[03:21] Por ejemplo, si yo tengo un control
+[03:23] de todas las ventas que voy haciendo a diario
+[03:25] y todos los gastos que voy haciendo a diario,
+[03:27] yo puedo meter los modelos de inteligencia artificiales
+[03:29] que me proyecten, me siguen.
+[03:30] Incluso,
+[03:31] que con base en el mes,
+[03:33] igual del año anterior,
+[03:35] me proyecte las ventas.
+[03:37] Proyecte también el tema de los gastos.
+[03:40] De los gastos.
+[03:41] Que maneje costos por producto.
+[03:45] Bueno, el año pasado te investiste 800.000 pesos
+[03:49] por semana.
+[03:50] No sé, no sé.
+[03:52] 800.000 pesos por semana.
+[03:54] Y para este año,
+[03:56] como subió el salario mínimo,
+[03:58] se te va a duplicar o a triplicar el costo.
+[04:01] Ya.
+[04:02] Y que también haya tiempo para sonar.
+[04:04] El mes pasado,
+[04:06] para este mes del año pasado,
+[04:09] los productos que menos se vendieron fueron estos.
+[04:12] Entonces, para este mes,
+[04:13] se promocionan estos productos.
+[04:14] O sea, todo ese tipo de analizar el de los datos.
+[04:17] Y si usted entre más captura en datos, mejor.
+[04:20] Aquí tenemos otra fase
+[04:21] que viene siendo la de reportes
+[04:22] que funciona como un extracto también.
+[04:24] Aquí, por lo menos,
+[04:25] generamos una fatuna,
+[04:27] un reporte detallado aquí,
+[04:29] de las ventas, la fechito,
+[04:30] de ese cuánto genero.
+[04:31] Entonces, por lo menos mensualmente,
+[04:33] si queremos, podemos generar aquí,
+[04:35] viendo más generos aquí el reporte.
+[04:37] Tenemos esta fase aquí de asistente
+[04:39] que funciona como un chatbot
+[04:41] donde el usuario de pronto pide
+[04:43] el niña, por lo menos.
+[04:45] Esto lo estamos enfocando
+[04:46] más que todo el tema de domicilio y cosas.
+[04:48] Eviten tener el cruel de cruel.
+[04:51] Porque entonces el usuario
+[04:52] pelea con el cruel de cruel.
+[04:54] Y es un...
+[04:55] Ya, yo digo una vez,
+[04:56] a mí me dice el cruel de cruel
+[04:57] y no entra a salir.
+[04:58] Yo allá no voy a perder tiempo
+[04:59] ni la paciencia.
+[05:00] Ya.
+[05:01] Entonces, que esta pagina
+[05:02] está aquí un completo.
+[05:03] No hay razón para que no se reíne.
+[05:05] Completo.
+[05:06] O sea, este cruel
+[05:07] va a ser un producto de aquí.
+[05:08] Ya.
+[05:10] Entonces,
+[05:12] que por lo menos aquí,
+[05:14] aquí por lo menos
+[05:16] le responda las cosas.
+[05:18] Por lo menos, mira,
+[05:19] aquí un ejemplo que le preguntan
+[05:20] que no hay ni siquiera
+[05:21] que os dejo de recuperar.
+[05:22] Se va a hacer un asistente
+[05:23] como tal para amanecer
+[05:24] por lo tanto.
+[05:25] En serio.
+[05:26] ¿Y qué ya están utilizando para esto?
+[05:27] Gemine.
+[05:28] Gemine.
+[05:29] Pero en qué,
+[05:30] de qué tipo,
+[05:31] o sea,
+[05:32] ¿cuál Gemine
+[05:34] está utilizando?
+[05:35] El de la IAQ17.
+[05:37] El de la IAE
+[05:39] ¿Por qué?
+[05:40] Porque tenemos que venir
+[05:41] mucho bien en el documental.
+[05:42] ¿Por qué?
+[05:43] Hay unas,
+[05:44] yo sé que esto lo va a encarar.
+[05:45] Yo sé que esto lo va a encarar.
+[05:46] Y de pronto esa estrategia de trenes
+[05:48] de IAE
+[05:49] es muy buena.
+[05:50] No es muy buena por costos,
+[05:52] por tokens.
+[05:53] Hay una que es
+[05:55] mucho más dada
+[05:57] a este tipo de herramientas
+[05:59] que te cobra por consumo.
+[06:01] Es decir,
+[06:02] si tú no conversaste en alguien
+[06:03] menos te cobra nada.
+[06:04] Pero si tú conversaste
+[06:05] en un aguito
+[06:06] y si conversaste bastante
+[06:07] te cobra bastante.
+[06:08] O sea, no es un costo fijo,
+[06:09] sino un costo por consumo.
+[06:10] En Google
+[06:12] Lite,
+[06:13] en Google Flash Lite.
+[06:14] Google Flash Lite.
+[06:16] Creo que la versión 1.1.
+[06:18] De todas maneras,
+[06:19] abrigo.
+[06:20] Y, por ejemplo,
+[06:21] yo que la uso en mis agentes
+[06:22] de N8N de la empresa,
+[06:24] imagínate que a mí
+[06:25] un negocio me está gastando
+[06:27] 3.000 pesos mensual.
+[06:29] Conversacionalmente.
+[06:30] 3.000 pesos.
+[06:32] Frente a los 20 dólares
+[06:33] que hay que pagar
+[06:34] por una guía rosarla.
+[06:36] Es costo a la medida.
+[06:38] Yo sé que esto lo van a escalar
+[06:40] y que en el momento en que lo calen,
+[06:42] tenes en cuenta que
+[06:44] hay que trabajar con otro tipo
+[06:46] de agente
+[06:48] conversacional.
+[06:50] Incluso eso lo puedes pagar
+[06:52] con N8N.
+[06:53] 3.000 pesos mensuales.
+[06:56] Es más de que en que más me cobra
+[06:58] y cobra 18.000 pesos mensuales.
+[07:00] Y ese sí lo que hace este.
+[07:02] Pero...
+[07:03] Pero es por eso.
+[07:04] Porque el token de texto
+[07:06] no vale casi nada.
+[07:08] Mientras que aquí hay que pagar
+[07:10] y comer aquí por lo menos
+[07:12] y en otro.
+[07:13] ¿Y qué pagamos?
+[07:14] ¿Y usted sabe que en Google
+[07:16] ahí estudio está gratuito
+[07:17] con su cuenta de
+[07:18] cero necesidad, ¿de acuerdo?
+[07:20] Que tiene el Plus.
+[07:22] Ah, sí.
+[07:23] Ya.
+[07:24] Sí.
+[07:25] Tú no sabías el Plus.
+[07:26] Bueno, el Plus.
+[07:27] Yo uso de otro.
+[07:29] Yo uso de otro.
+[07:30] Yo uso de otro.
+[07:32] Yo uso de otros.
+[07:33] Bueno, ya sabes que con la cuenta de
+[07:35] un N7 de Córdoba tiene el Plus.
+[07:37] Que tiene el Plus.
+[07:40] Genial.
+[07:41] Bueno, para ver si el parque
+[07:43] tiene el Cloud.
+[07:45] Yo tengo la cosa yo.
+[07:47] Soy TeamCloud.
+[07:49] Sí, Cloud.
+[07:50] Sí.
+[07:51] Mierda, no.
+[07:52] Yo sé que gente como es
+[07:53] Google Belive
+[07:54] pero...
+[07:56] para mí, Cloud es
+[07:58] un ejemplo.
+[07:59] Sí.

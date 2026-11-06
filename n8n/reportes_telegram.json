@@ -1,0 +1,95 @@
+{
+  "name": "Restaurante - Reportes por Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "0 23 * * *" } ] }
+      },
+      "id": "cron-cierre",
+      "name": "Cierre diario 11 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nqytcqambzznviybguxf.supabase.co/rest/v1/rpc/reporte",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_fecha: $now.setZone('America/Bogota').toFormat('yyyy-MM-dd') }) }}",
+        "options": {}
+      },
+      "id": "rpc-reporte",
+      "name": "Supabase: reporte del día",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://nqytcqambzznviybguxf.supabase.co/rest/v1/destinatarios_reportes?select=nombre,chat_id&activo=eq.true&recibe_diario=eq.true",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "get-destinatarios",
+      "name": "Supabase: destinatarios",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $('Supabase: reporte del día').first().json;\nconst $f = n => '$' + Number(n || 0).toLocaleString('es-CO');\nconst platos = Object.entries(r.unidades_por_plato || {})\n  .sort((a, b) => b[1] - a[1]).slice(0, 5)\n  .map(([p, u]) => `  • ${p}: ${u}`).join('\\n') || '  (sin ventas)';\nconst gastos = Object.entries(r.gastos_por_categoria || {})\n  .map(([c, v]) => `  • ${c}: ${$f(v)}`).join('\\n') || '  (sin gastos)';\nconst bajos = (r.ingredientes_bajo_minimo || [])\n  .map(i => `  ⚠️ ${i.ingrediente}: ${i.stock} ${i.unidad} (mín. ${i.stock_minimo})`).join('\\n');\nconst texto = [\n  `📊 *Cierre del día ${r.periodo}*`,\n  '',\n  `🧾 Ventas: ${r.numero_ventas} — ${$f(r.total_ventas)}`,\n  `💸 Gastos: ${$f(r.total_gastos)}`,\n  `${r.balance >= 0 ? '✅' : '🔻'} Balance: ${$f(r.balance)}`,\n  '',\n  '*Más vendidos:*', platos,\n  '',\n  '*Gastos por categoría:*', gastos,\n  bajos ? '\\n*Stock bajo — reponer:*\\n' + bajos : '\\n✅ Inventario sin alertas'\n].join('\\n');\n// Un item por destinatario\nreturn $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json])\n  .filter(d => d.chat_id)\n  .map(d => ({ json: { chat_id: d.chat_id, nombre: d.nombre, texto } }));"
+      },
+      "id": "formatear",
+      "name": "Armar mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.texto }}",
+        "additionalFields": { "parse_mode": "Markdown", "appendAttribution": false }
+      },
+      "id": "tg-enviar",
+      "name": "Telegram: enviar reporte",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": { "updates": ["message"], "additionalFields": {} },
+      "id": "tg-trigger",
+      "name": "Telegram: mensaje recibido",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 460]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "=Hola {{ $json.message.from.first_name }} 👋\nTu chat_id es: `{{ $json.message.chat.id }}`\nDáselo al administrador para que te registre y empieces a recibir los reportes del restaurante.",
+        "additionalFields": { "parse_mode": "Markdown", "appendAttribution": false }
+      },
+      "id": "tg-chatid",
+      "name": "Responder chat_id",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [420, 460]
+    }
+  ],
+  "connections": {
+    "Cierre diario 11 PM": { "main": [[{ "node": "Supabase: reporte del día", "type": "main", "index": 0 }]] },
+    "Supabase: reporte del día": { "main": [[{ "node": "Supabase: destinatarios", "type": "main", "index": 0 }]] },
+    "Supabase: destinatarios": { "main": [[{ "node": "Armar mensaje", "type": "main", "index": 0 }]] },
+    "Armar mensaje": { "main": [[{ "node": "Telegram: enviar reporte", "type": "main", "index": 0 }]] },
+    "Telegram: mensaje recibido": { "main": [[{ "node": "Responder chat_id", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "timezone": "America/Bogota" }
+}

@@ -1,0 +1,351 @@
+{
+  "name": "Restaurante - Respaldo en Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 23 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Respaldo diario 11:30 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://nqytcqambzznviybguxf.supabase.co/rest/v1/ingredientes?select=ingrediente,unidad,stock,stock_minimo",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "g0",
+      "name": "Leer inventario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "PEGA_AQUI_LA_URL_DE_TU_GOOGLE_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Inventario"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "ingrediente"
+          ]
+        },
+        "options": {}
+      },
+      "id": "s0",
+      "name": "Guardar Inventario",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        700,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://nqytcqambzznviybguxf.supabase.co/rest/v1/ventas?select=id_operacion,fecha,plato,cantidad,total,estado&fecha=eq.{{ $now.setZone('America/Bogota').toFormat('yyyy-MM-dd') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "g1",
+      "name": "Leer ventas del día",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "PEGA_AQUI_LA_URL_DE_TU_GOOGLE_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Ventas"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id_operacion"
+          ]
+        },
+        "options": {}
+      },
+      "id": "s1",
+      "name": "Guardar Ventas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        700,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://nqytcqambzznviybguxf.supabase.co/rest/v1/gastos?select=id_operacion,fecha,concepto,categoria,valor&fecha=eq.{{ $now.setZone('America/Bogota').toFormat('yyyy-MM-dd') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "g2",
+      "name": "Leer gastos del día",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "PEGA_AQUI_LA_URL_DE_TU_GOOGLE_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Gastos"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id_operacion"
+          ]
+        },
+        "options": {}
+      },
+      "id": "s2",
+      "name": "Guardar Gastos",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://nqytcqambzznviybguxf.supabase.co/rest/v1/movimientos_inventario?select=id,ingrediente,delta,motivo,referencia,created_at&created_at=gte.{{ $now.setZone('America/Bogota').toFormat('yyyy-MM-dd') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "g3",
+      "name": "Leer movimientos del día",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "PEGA_AQUI_LA_URL_DE_TU_GOOGLE_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Movimientos"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "s3",
+      "name": "Guardar Movimientos",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        700,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://nqytcqambzznviybguxf.supabase.co/rest/v1/recetas?select=id,plato,ingrediente,cantidad,precio",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "g4",
+      "name": "Leer recetas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "PEGA_AQUI_LA_URL_DE_TU_GOOGLE_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Recetas"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "s4",
+      "name": "Guardar Recetas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        700,
+        720
+      ]
+    }
+  ],
+  "connections": {
+    "Respaldo diario 11:30 PM": {
+      "main": [
+        [
+          {
+            "node": "Leer inventario",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Leer ventas del día",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Leer gastos del día",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Leer movimientos del día",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Leer recetas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer inventario": {
+      "main": [
+        [
+          {
+            "node": "Guardar Inventario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer ventas del día": {
+      "main": [
+        [
+          {
+            "node": "Guardar Ventas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer gastos del día": {
+      "main": [
+        [
+          {
+            "node": "Guardar Gastos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer movimientos del día": {
+      "main": [
+        [
+          {
+            "node": "Guardar Movimientos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer recetas": {
+      "main": [
+        [
+          {
+            "node": "Guardar Recetas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Bogota"
+  }
+}

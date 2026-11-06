@@ -38,7 +38,7 @@ const FLOATING_ELEMENTS = [
 ];
 
 export const LoginScreen: React.FC = () => {
-  const { login, isLoading, loginError } = useAuth();
+  const { login, loginDemo, isLoading, loginError } = useAuth();
   const { effectiveTheme, toggleTheme, paletteConfig } = useTheme();
 
   // Inputs completely empty as requested
@@ -374,6 +374,14 @@ export const LoginScreen: React.FC = () => {
             )}
           </motion.button>
         </form>
+
+        <button
+          type="button"
+          onClick={loginDemo}
+          className="w-full h-11 mt-3 rounded-2xl text-sm font-bold text-[var(--text-main)] bg-[var(--bg-card)] border border-dashed border-[var(--border-soft)] hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+        >
+          Probar en modo demo (datos de ejemplo)
+        </button>
 
         {/* Security & System Status Badges */}
         <div className="mt-7 pt-5 border-t border-[var(--border-soft)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">

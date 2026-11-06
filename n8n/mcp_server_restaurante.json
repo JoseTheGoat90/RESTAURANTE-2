@@ -1,0 +1,272 @@
+{
+  "name": "Restaurante - MCP Server (solo lectura)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "restaurante-mcp"
+      },
+      "id": "mcp-trigger",
+      "name": "MCP Server Restaurante",
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 2,
+      "position": [
+        700,
+        100
+      ],
+      "webhookId": "restaurante-mcp"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Devuelve todos los ingredientes con su stock actual, unidad y stock mínimo. Úsala para saber qué hay, qué falta y armar listas de compra.",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "method": "GET",
+        "url": "https://nqytcqambzznviybguxf.supabase.co/rest/v1/ingredientes?select=ingrediente,unidad,stock,stock_minimo&order=ingrediente.asc"
+      },
+      "id": "tool-0",
+      "name": "consultar_inventario",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Devuelve las recetas: qué ingredientes y cuánta cantidad usa cada plato, y su precio de venta. Úsala para calcular cuántos platos alcanzan con el stock actual o qué platos dependen de un ingrediente.",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "method": "GET",
+        "url": "https://nqytcqambzznviybguxf.supabase.co/rest/v1/recetas?select=plato,ingrediente,cantidad,precio&order=plato.asc"
+      },
+      "id": "tool-1",
+      "name": "consultar_recetas",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        380,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Reporte de un día: número de ventas, total vendido, gastos, balance, unidades por plato, gastos por categoría, ingredientes bajo mínimo y movimientos de inventario.",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "method": "POST",
+        "url": "https://nqytcqambzznviybguxf.supabase.co/rest/v1/rpc/reporte",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"p_fecha\": \"{fecha}\"}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "fecha",
+              "description": "Fecha en formato YYYY-MM-DD",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "tool-2",
+      "name": "reporte_dia",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Proyección del mes actual: ventas y gastos acumulados, proyección al cierre, comparación con el mismo mes del año anterior y platos de baja rotación (últimos 60 días).",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "method": "POST",
+        "url": "https://nqytcqambzznviybguxf.supabase.co/rest/v1/rpc/proyeccion",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}"
+      },
+      "id": "tool-3",
+      "name": "proyeccion_mes",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        740,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Lista de ventas (fecha, plato, cantidad, total) entre dos fechas, sin las canceladas. Úsala para tendencias y comparar días o semanas.",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "method": "GET",
+        "url": "https://nqytcqambzznviybguxf.supabase.co/rest/v1/ventas?select=fecha,plato,cantidad,total&estado=neq.cancelado&fecha=gte.{desde}&fecha=lte.{hasta}&order=fecha.asc",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "desde",
+              "description": "Fecha inicial YYYY-MM-DD",
+              "type": "string"
+            },
+            {
+              "name": "hasta",
+              "description": "Fecha final YYYY-MM-DD",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "tool-4",
+      "name": "ventas_periodo",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        920,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Lista de gastos (fecha, concepto, categoría, valor) entre dos fechas.",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "method": "GET",
+        "url": "https://nqytcqambzznviybguxf.supabase.co/rest/v1/gastos?select=fecha,concepto,categoria,valor&fecha=gte.{desde}&fecha=lte.{hasta}&order=fecha.asc",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "desde",
+              "description": "Fecha inicial YYYY-MM-DD",
+              "type": "string"
+            },
+            {
+              "name": "hasta",
+              "description": "Fecha final YYYY-MM-DD",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "tool-5",
+      "name": "gastos_periodo",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Historial (kardex) de entradas y salidas de un ingrediente con su motivo. Úsala para explicar por qué bajó o subió un insumo.",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "method": "GET",
+        "url": "https://nqytcqambzznviybguxf.supabase.co/rest/v1/movimientos_inventario?select=ingrediente,delta,motivo,referencia,created_at&ingrediente=ilike.*{ingrediente}*&order=created_at.desc&limit=60",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "ingrediente",
+              "description": "Nombre o parte del nombre del ingrediente",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "tool-6",
+      "name": "movimientos_ingrediente",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        360
+      ]
+    }
+  ],
+  "connections": {
+    "consultar_inventario": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Restaurante",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_recetas": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Restaurante",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reporte_dia": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Restaurante",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "proyeccion_mes": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Restaurante",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ventas_periodo": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Restaurante",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gastos_periodo": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Restaurante",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "movimientos_ingrediente": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Restaurante",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Bogota"
+  }
+}

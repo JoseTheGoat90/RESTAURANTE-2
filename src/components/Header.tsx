@@ -10,9 +10,9 @@ import { useData } from '../context/DataContext.tsx';
 import { Sun, Moon, RefreshCw, ChefHat, LogOut } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { session, logout } = useAuth();
+  const { session, logout, isDemo } = useAuth();
   const { effectiveTheme, toggleTheme, paletteConfig } = useTheme();
-  const { loadAllData, isRefreshing } = useData();
+  const { loadAllData, isRefreshing, lastError } = useData();
 
   return (
     <header className="sticky top-0 z-30 bg-[var(--bg-header)] text-[var(--text-main)] border-b border-[var(--border-soft)] transition-colors shadow-xs">
@@ -81,7 +81,7 @@ export const Header: React.FC = () => {
             <button
               onClick={() => logout()}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer"
-              title="Cerrar sesión (Cuenta maestra)"
+              title={isDemo ? "Salir del modo demo" : `Cerrar sesión (${session.userEmail})`}
               aria-label="Cerrar sesión"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -90,6 +90,16 @@ export const Header: React.FC = () => {
           )}
         </div>
       </div>
+      {isDemo && (
+        <div className="bg-amber-400 text-amber-950 text-center text-xs sm:text-sm font-black py-1.5 px-4">
+          MODO DEMO · Datos de ejemplo guardados solo en este navegador. Nada se envía a la base de datos.
+        </div>
+      )}
+      {!isDemo && lastError && (
+        <div role="alert" className="bg-rose-600 text-white text-center text-xs sm:text-sm font-bold py-1.5 px-4">
+          {lastError}
+        </div>
+      )}
     </header>
   );
 };

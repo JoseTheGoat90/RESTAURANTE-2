@@ -1,0 +1,161 @@
+{
+  "name": "Restaurante - Agente Asesor (Gemini + MCP)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "panel-chat",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "wh",
+      "name": "Webhook Panel Chat",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        200
+      ],
+      "webhookId": "panel-chat"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "systemMessage": "=Eres el ASESOR del restaurante: analista de datos y consultor de gestión gastronómica. Hablas español claro, cercano y breve.\n\nQUÉ HACES\n- Analizar inventario: qué falta, qué está por agotarse, cuántos platos alcanzan con el stock actual (consultar_recetas + consultar_inventario) y por qué bajó un insumo (movimientos_ingrediente).\n- Sugerir listas de compra priorizadas: primero lo que está bajo mínimo y lo que usan los platos más vendidos.\n- Analizar ventas y gastos: tendencias por día o semana, platos estrella y de baja rotación, gastos que más pesan, balance.\n- Proyectar el mes (proyeccion_mes) y comparar con el año anterior.\n- Asesorar: proponer promociones para platos de baja rotación, alertar posibles mermas, recomendar acciones concretas al dueño.\n\nREGLAS\n1. Eres de SOLO LECTURA. No registras ventas ni gastos ni cambias el inventario. Si te lo piden, explica con amabilidad que eso se hace desde el panel.\n2. Toda cifra debe salir de una herramienta. Si no tienes el dato, dilo. Nunca inventes números.\n3. Hoy es {{ $now.setZone('America/Bogota').toFormat('yyyy-MM-dd') }}. Usa formato YYYY-MM-DD en las herramientas.\n4. Indica siempre unidades (g, kg, lb, unidad) y el dinero en pesos con separador de miles.\n5. Responde así: primero el dato clave, luego máximo 3 viñetas de análisis y, si aplica, de 1 a 3 recomendaciones concretas.\n6. No eres un menú de opciones: conversa de forma natural y pregunta solo si es imprescindible.",
+          "maxIterations": 8
+        }
+      },
+      "id": "agent",
+      "name": "Agente Asesor",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        460,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "llm",
+      "name": "Gemini Flash-Lite",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        340,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook Panel Chat').item.json.body.sessionId }}",
+        "contextWindowLength": 10
+      },
+      "id": "mem",
+      "name": "Memoria conversación",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        480,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "https://TU-N8N/mcp/restaurante-mcp/sse"
+      },
+      "id": "mcpc",
+      "name": "Herramientas MCP Restaurante",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        620,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ output: $json.output }) }}",
+        "options": {}
+      },
+      "id": "resp",
+      "name": "Responder al panel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        760,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Panel Chat": {
+      "main": [
+        [
+          {
+            "node": "Agente Asesor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Asesor": {
+      "main": [
+        [
+          {
+            "node": "Responder al panel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Flash-Lite": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente Asesor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria conversación": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente Asesor",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Herramientas MCP Restaurante": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Asesor",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Bogota"
+  }
+}
