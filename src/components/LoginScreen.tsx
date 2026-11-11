@@ -158,12 +158,12 @@ export const LoginScreen: React.FC = () => {
           {isDark ? (
             <>
               <Sun className="w-4 h-4 text-amber-400 animate-spin-slow" />
-              <span>☀️ Modo Claro</span>
+              <span>Modo Claro</span>
             </>
           ) : (
             <>
               <Moon className="w-4 h-4 text-blue-600" />
-              <span>🌙 Modo Oscuro</span>
+              <span>Modo Oscuro</span>
             </>
           )}
         </motion.button>

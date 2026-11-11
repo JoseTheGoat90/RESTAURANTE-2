@@ -88,13 +88,13 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
         <motion.div
           variants={cardItemVariants}
           onClick={() => onNavigate?.('vender')}
-          className={`bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-5 shadow-xs flex flex-col justify-between ${
-            onNavigate ? 'cursor-pointer hover:border-emerald-300 dark:hover:border-emerald-800 transition-colors' : ''
+          className={`bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-5 shadow-xs flex flex-col justify-between ${
+            onNavigate ? 'cursor-pointer hover:border-emerald-500/50 transition-colors' : ''
           }`}
           title="Ver o registrar ventas"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-stone-500 dark:text-stone-400">
+            <span className="text-xs font-bold text-[var(--text-muted)]">
               Ventas hoy
             </span>
             <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
@@ -102,11 +102,11 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl sm:text-3xl font-extrabold text-stone-900 dark:text-white font-mono tabular-nums">
+            <div className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)] font-mono tabular-nums">
               {formatCOP(reporteHoy.total_ventas)}
             </div>
-            <div className="text-xs text-stone-500 dark:text-stone-400 mt-1 flex items-center gap-1.5">
-              <span className="font-semibold text-stone-700 dark:text-stone-200">
+            <div className="text-xs text-[var(--text-muted)] mt-1 flex items-center gap-1.5">
+              <span className="font-semibold text-[var(--text-main)]">
                 {reporteHoy.numero_ventas} {reporteHoy.numero_ventas === 1 ? 'pedido' : 'pedidos'}
               </span>
               <span>registrados hoy</span>
@@ -118,13 +118,13 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
         <motion.div
           variants={cardItemVariants}
           onClick={() => onNavigate?.('gastos')}
-          className={`bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-5 shadow-xs flex flex-col justify-between ${
-            onNavigate ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-800 transition-colors' : ''
+          className={`bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-5 shadow-xs flex flex-col justify-between ${
+            onNavigate ? 'cursor-pointer hover:border-rose-500/50 transition-colors' : ''
           }`}
           title="Ver o registrar gastos"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-stone-500 dark:text-stone-400">
+            <span className="text-xs font-bold text-[var(--text-muted)]">
               Gastos hoy
             </span>
             <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
@@ -132,10 +132,10 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl sm:text-3xl font-extrabold text-stone-900 dark:text-white font-mono tabular-nums">
+            <div className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)] font-mono tabular-nums">
               {formatCOP(reporteHoy.total_gastos)}
             </div>
-            <div className="text-xs text-stone-500 dark:text-stone-400 mt-1">
+            <div className="text-xs text-[var(--text-muted)] mt-1">
               Egresos operativos del día
             </div>
           </div>
@@ -144,10 +144,10 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
         {/* Card 3: Balance Hoy */}
         <motion.div
           variants={cardItemVariants}
-          className="bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-5 shadow-xs flex flex-col justify-between"
+          className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-5 shadow-xs flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-stone-500 dark:text-stone-400">
+            <span className="text-xs font-bold text-[var(--text-muted)]">
               Balance neto
             </span>
             <div
@@ -170,8 +170,8 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
             >
               {formatCOP(balance)}
             </div>
-            <div className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-              Margen operativo diario
+            <div className="text-xs text-[var(--text-muted)] mt-1">
+              Margen operativo del día
             </div>
           </div>
         </motion.div>

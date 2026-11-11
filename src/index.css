@@ -3,7 +3,7 @@
 
 @layer base {
   :root {
-    /* ☀️ Modo Claro (Gris muy claro) */
+    /* Modo Claro (Gris muy claro) */
     --bg-main: #F4F5F7;
     --bg-card: #FFFFFF;
     --bg-header: #EBEEF2;
@@ -29,7 +29,7 @@
   }
 
   .dark {
-    /* 🌙 Modo Oscuro (Totalmente Negro) */
+    /* Modo Oscuro (Totalmente Negro) */
     --bg-main: #000000;
     --bg-card: #121212;
     --bg-card-alt: #18181B;

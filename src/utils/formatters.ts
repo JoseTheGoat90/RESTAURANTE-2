@@ -126,7 +126,7 @@ export function normalizeUserInput(str: string): string {
  * V-AAAAMMDD-HHMMSS-XXXX for sales
  * G-AAAAMMDD-HHMMSS-XXXX for expenses
  */
-export function generateOperationId(type: 'V' | 'G'): string {
+export function generateOperationId(type: string = 'OP'): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Bogota',
     year: 'numeric',

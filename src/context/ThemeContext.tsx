@@ -49,7 +49,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const root = document.documentElement;
     if (effectiveTheme === 'dark') {
       root.classList.add('dark');
-      // 🌙 Modo Oscuro (Totalmente Negro)
+      // Modo Oscuro (Totalmente Negro)
       root.style.setProperty('--bg-main', '#000000');
       root.style.setProperty('--bg-card', '#121212');
       root.style.setProperty('--bg-card-alt', '#18181B');
@@ -67,7 +67,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.style.setProperty('--metric-negative', '#F87171');
     } else {
       root.classList.remove('dark');
-      // ☀️ Modo Claro (Gris muy claro)
+      // Modo Claro (Gris muy claro)
       root.style.setProperty('--bg-main', '#F4F5F7');
       root.style.setProperty('--bg-card', '#FFFFFF');
       root.style.setProperty('--bg-header', '#EBEEF2');

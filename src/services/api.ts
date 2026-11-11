@@ -174,11 +174,9 @@ export async function sendChatMessage(
     body: JSON.stringify(payload),
   });
 
-  // Un 401 de n8n NO significa que la sesión de Supabase expiró: el panel ya renueva el
-  // token antes de enviarlo. Se informa en el chat en vez de cerrar la sesión.
-  void onAuthError;
   if (res.status === 401) {
-    throw new Error('El asistente (n8n) rechazó la sesión. Revisa la verificación de sesión del workflow.');
+    if (onAuthError) onAuthError();
+    throw new Error('No autorizado (401).');
   }
 
   if (!res.ok) {

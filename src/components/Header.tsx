@@ -66,12 +66,12 @@ export const Header: React.FC = () => {
             {effectiveTheme === 'dark' ? (
               <>
                 <Sun className="w-4 h-4 text-amber-400" />
-                <span className="hidden sm:inline">☀️ Claro</span>
+                <span className="hidden sm:inline">Claro</span>
               </>
             ) : (
               <>
                 <Moon className="w-4 h-4 text-blue-600" />
-                <span className="hidden sm:inline">🌙 Oscuro</span>
+                <span className="hidden sm:inline">Oscuro</span>
               </>
             )}
           </button>

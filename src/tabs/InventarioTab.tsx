@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
 import {
@@ -13,7 +13,7 @@ import {
   normalizeUserInput,
 } from '../utils/formatters.ts';
 import { RESTAURANT_IMAGES } from '../assets/images.ts';
-import { Ingrediente, UnidadMedida } from '../types.ts';
+import { Ingrediente, UnidadMedida, TipoInsumo } from '../types.ts';
 import {
   Boxes,
   Plus,
@@ -25,6 +25,10 @@ import {
   Loader2,
   X,
   Search,
+  PackageX,
+  Layers,
+  Utensils,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -43,6 +47,9 @@ export const InventarioTab: React.FC = () => {
   const { paletteConfig } = useTheme();
 
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todos');
+
+  // Adjust stock modal
   const [selectedIngredient, setSelectedIngredient] = useState<Ingrediente | null>(null);
   const [adjustModalOpen, setAdjustModalOpen] = useState<boolean>(false);
   const [adjustAmount, setAdjustAmount] = useState<string>('');
@@ -50,17 +57,40 @@ export const InventarioTab: React.FC = () => {
   const [adjustType, setAdjustType] = useState<'sumar' | 'restar'>('sumar');
   const [isAdjusting, setIsAdjusting] = useState<boolean>(false);
 
+  // Quick Damage/Loss Modal ("Reportar faltantes, daños o productos agotados")
+  const [damageModalOpen, setDamageModalOpen] = useState<boolean>(false);
+  const [damageIngredient, setDamageIngredient] = useState<string>('');
+  const [damageAmount, setDamageAmount] = useState<string>('');
+  const [damageReason, setDamageReason] = useState<string>('Alimento averiado o dañado');
+  const [isReportingDamage, setIsReportingDamage] = useState<boolean>(false);
+
   // New ingredient modal
   const [newIngredientModalOpen, setNewIngredientModalOpen] = useState<boolean>(false);
   const [newName, setNewName] = useState<string>('');
-  const [newUnit, setNewUnit] = useState<UnidadMedida>('g');
+  const [newUnit, setNewUnit] = useState<UnidadMedida>('lb');
+  const [newCategory, setNewCategory] = useState<TipoInsumo>('carnes_proteinas');
   const [newStock, setNewStock] = useState<string>('0');
   const [newMinimo, setNewMinimo] = useState<string>('0');
   const [isCreating, setIsCreating] = useState<boolean>(false);
 
-  const filteredIngredientes = ingredientes.filter((i) =>
-    i.ingrediente.toLowerCase().includes(searchTerm.toLowerCase().trim())
-  );
+  const filteredIngredientes = useMemo(() => {
+    return ingredientes.filter((i) => {
+      const matchSearch = i.ingrediente.toLowerCase().includes(searchTerm.toLowerCase().trim());
+      if (!matchSearch) return false;
+
+      if (categoriaFiltro === 'todos') return true;
+      if (categoriaFiltro === 'carnes_proteinas') return i.tipo_insumo === 'carnes_proteinas' || i.tipo_insumo === ('carne' as any);
+      if (categoriaFiltro === 'tuberculos_vegetales') return i.tipo_insumo === 'tuberculos_vegetales' || i.tipo_insumo === ('acompanamiento' as any);
+      if (categoriaFiltro === 'verduras_hortalizas') return i.tipo_insumo === 'verduras_hortalizas';
+      if (categoriaFiltro === 'granos_legumbres') return i.tipo_insumo === 'granos_legumbres';
+      if (categoriaFiltro === 'salsas_condimentos') return i.tipo_insumo === 'salsas_condimentos';
+      if (categoriaFiltro === 'desechables') return i.tipo_insumo === 'desechables' || i.tipo_insumo === ('desechable' as any);
+      return true;
+    });
+  }, [ingredientes, searchTerm, categoriaFiltro]);
+
+  const itemsAgotados = ingredientes.filter((i) => i.stock <= 0).length;
+  const itemsBajoMinimo = ingredientes.filter((i) => i.stock > 0 && i.stock <= i.stock_minimo).length;
 
   const handleOpenAdjust = (ing: Ingrediente) => {
     setSelectedIngredient(ing);
@@ -104,6 +134,42 @@ export const InventarioTab: React.FC = () => {
     }
   };
 
+  const handleReportDamage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!damageIngredient) {
+      showNotification({ ok: false, mensaje: 'Selecciona el insumo afectado' });
+      return;
+    }
+    const amount = parseFloat(damageAmount);
+    if (isNaN(amount) || amount <= 0) {
+      showNotification({ ok: false, mensaje: 'Ingresa la cantidad dañada o faltante mayor a cero' });
+      return;
+    }
+
+    setIsReportingDamage(true);
+    try {
+      const res = await executeAdjustStock({
+        p_ingrediente: damageIngredient,
+        p_delta: -amount,
+        p_motivo: `Avería/Daño: ${damageReason}`,
+      });
+
+      showNotification(res);
+      if (res.ok) {
+        setDamageModalOpen(false);
+        setDamageIngredient('');
+        setDamageAmount('');
+      }
+    } catch (err: unknown) {
+      showNotification({
+        ok: false,
+        mensaje: err instanceof Error ? err.message : 'Error al registrar el daño',
+      });
+    } finally {
+      setIsReportingDamage(false);
+    }
+  };
+
   const handleCreateIngredient = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newName.trim();
@@ -111,7 +177,7 @@ export const InventarioTab: React.FC = () => {
     const minNum = parseFloat(newMinimo) || 0;
 
     if (!name) {
-      showNotification({ ok: false, mensaje: 'El nombre del ingrediente es obligatorio' });
+      showNotification({ ok: false, mensaje: 'El nombre del insumo es obligatorio' });
       return;
     }
 
@@ -123,6 +189,7 @@ export const InventarioTab: React.FC = () => {
         p_unidad: newUnit,
         p_stock: stockNum,
         p_minimo: minNum,
+        tipo_insumo: newCategory,
       });
 
       showNotification(res);
@@ -135,7 +202,7 @@ export const InventarioTab: React.FC = () => {
     } catch (err: unknown) {
       showNotification({
         ok: false,
-        mensaje: err instanceof Error ? err.message : 'Error al crear ingrediente',
+        mensaje: err instanceof Error ? err.message : 'Error al crear insumo',
       });
     } finally {
       setIsCreating(false);
@@ -151,40 +218,63 @@ export const InventarioTab: React.FC = () => {
         transition={{ duration: 0.35 }}
         className="grid grid-cols-1 md:grid-cols-3 gap-4"
       >
-        <div className="md:col-span-2 bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+        <div className="md:col-span-2 bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-5 sm:p-6 shadow-xs flex flex-col justify-between">
           <div>
-            <div
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold mb-2"
-              style={{ backgroundColor: `${paletteConfig.primaryHex}15`, color: paletteConfig.primaryHex }}
-            >
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold mb-2 bg-[var(--brand-accent)]/10 text-[var(--brand-accent)]">
               <Boxes className="w-3.5 h-3.5" />
-              <span>Gestión de Bodega y Despensa</span>
+              <span>Inventario, Carnes, Acompañamientos y Desechables</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-stone-900 dark:text-white tracking-tight">
-              Control de Inventario e Insumos
+            <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-main)] tracking-tight">
+              Control de Inventario y Suministros
             </h2>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 leading-relaxed">
-              Monitorea existencias en gramos, kilogramos, libras o unidades. Ajusta mermas, compras o conteos con trazabilidad completa.
+            <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              Supervisión de carnes principales (lomo, pechuga, res, costillas, jarrete), acompañamientos (bollo, yuca, patacón, papa) y elementos desechables de atención y empaque.
             </p>
           </div>
 
-          <div className="pt-4 flex items-center justify-between gap-3">
-            <span className="text-xs text-stone-500 dark:text-stone-400">
-              {ingredientes.length} materias primas registradas
-            </span>
-            <button
-              onClick={() => setNewIngredientModalOpen(true)}
-              style={{ backgroundColor: paletteConfig.primaryHex }}
-              className="px-3.5 py-2 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-transform active:scale-[0.99] cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nuevo Ingrediente</span>
-            </button>
+          <div className="pt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 text-xs">
+              <span className="text-[var(--text-muted)]">
+                {ingredientes.length} insumos registrados
+              </span>
+              {itemsAgotados > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold text-[11px]">
+                  {itemsAgotados} agotados
+                </span>
+              )}
+              {itemsBajoMinimo > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold text-[11px]">
+                  {itemsBajoMinimo} bajo mínimo
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDamageModalOpen(true)}
+                className="px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/30 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Reportar faltantes, averías o mermas"
+              >
+                <PackageX className="w-4 h-4" />
+                <span>Reportar Daño / Avería</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setNewIngredientModalOpen(true)}
+                style={{ backgroundColor: paletteConfig.accent }}
+                className="px-3.5 py-2 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-transform active:scale-[0.99] cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nuevo Insumo</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Pantry Image */}
-        <div className="relative rounded-2xl overflow-hidden h-40 md:h-auto border border-stone-200 dark:border-stone-800 shadow-xs">
+        <div className="relative rounded-2xl overflow-hidden h-40 md:h-auto border border-[var(--border-soft)] shadow-xs">
           <img
             src={RESTAURANT_IMAGES.freshPantry}
             alt="Despensa de Ingredientes"
@@ -192,35 +282,109 @@ export const InventarioTab: React.FC = () => {
             referrerPolicy="no-referrer"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-4 text-white">
-            <span className="text-xs font-bold drop-shadow-xs">Cadena de Frío e Insumos</span>
+            <span className="text-xs font-bold drop-shadow-xs">Cadena de Frío, Acompañamientos y Empaques</span>
           </div>
         </div>
       </motion.div>
 
-      {/* Inventory Table */}
+      {/* Inventory Table with Category Filters */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.08 }}
-        className="bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-5 shadow-xs"
+        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-5 shadow-xs"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <Boxes className="w-4 h-4 text-stone-400" />
-            <h3 className="text-sm font-bold text-stone-900 dark:text-white">
-              Stock de Insumos en Bodega
-            </h3>
+          {/* Category Filter Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-soft)] text-xs">
+            <button
+              type="button"
+              onClick={() => setCategoriaFiltro('todos')}
+              className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                categoriaFiltro === 'todos'
+                  ? 'bg-[var(--brand-accent)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Todos ({ingredientes.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoriaFiltro('carnes_proteinas')}
+              className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                categoriaFiltro === 'carnes_proteinas'
+                  ? 'bg-[var(--brand-accent)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Carnes y Proteínas
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoriaFiltro('tuberculos_vegetales')}
+              className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                categoriaFiltro === 'tuberculos_vegetales'
+                  ? 'bg-[var(--brand-accent)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Tubérculos y Plátanos
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoriaFiltro('verduras_hortalizas')}
+              className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                categoriaFiltro === 'verduras_hortalizas'
+                  ? 'bg-[var(--brand-accent)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Verduras y Hortalizas
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoriaFiltro('granos_legumbres')}
+              className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                categoriaFiltro === 'granos_legumbres'
+                  ? 'bg-[var(--brand-accent)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Granos y Legumbres
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoriaFiltro('salsas_condimentos')}
+              className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                categoriaFiltro === 'salsas_condimentos'
+                  ? 'bg-[var(--brand-accent)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Salsas y Condimentos
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoriaFiltro('desechables')}
+              className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                categoriaFiltro === 'desechables'
+                  ? 'bg-[var(--brand-accent)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Desechables y Cubiertos
+            </button>
           </div>
 
           {/* Search bar */}
           <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar ingrediente..."
-              className="w-full h-9 pl-8 pr-3 rounded-lg border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 text-xs text-stone-900 dark:text-white placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+              placeholder="Buscar por nombre..."
+              className="w-full h-9 pl-8 pr-3 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-main)] text-xs text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-accent)]"
             />
           </div>
         </div>
@@ -228,8 +392,9 @@ export const InventarioTab: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-stone-200 dark:border-stone-800 text-stone-500 dark:text-stone-400 font-bold">
-                <th className="pb-2.5">Ingrediente</th>
+              <tr className="border-b border-[var(--border-soft)] text-[var(--text-muted)] font-bold">
+                <th className="pb-2.5">Insumo / Materia Prima</th>
+                <th className="pb-2.5">Categoría</th>
                 <th className="pb-2.5">Stock Actual</th>
                 <th className="pb-2.5">Stock Mínimo</th>
                 <th className="pb-2.5">Estado</th>
@@ -240,33 +405,42 @@ export const InventarioTab: React.FC = () => {
               variants={fastStaggerContainerVariants}
               initial="hidden"
               animate="visible"
-              className="divide-y divide-stone-100 dark:divide-stone-800"
+              className="divide-y divide-[var(--border-soft)]"
             >
               {filteredIngredientes.map((ing) => {
-                const isLow = ing.stock <= ing.stock_minimo;
+                const isAgotado = ing.stock <= 0;
+                const isLow = !isAgotado && ing.stock <= ing.stock_minimo;
                 return (
                   <motion.tr
                     key={ing.ingrediente}
                     variants={tableRowVariants}
-                    className="hover:bg-stone-50 dark:hover:bg-stone-900/40 transition-colors"
+                    className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                   >
-                    <td className="py-3 font-semibold text-stone-900 dark:text-white">
+                    <td className="py-3 font-semibold text-[var(--text-main)]">
                       {capitalizeFirst(ing.ingrediente)}
                     </td>
-                    <td className="py-3 font-mono font-bold text-stone-800 dark:text-stone-200">
+                    <td className="py-3 text-[var(--text-muted)] capitalize">
+                      {ing.tipo_insumo || 'Insumo'}
+                    </td>
+                    <td className="py-3 font-mono font-bold text-[var(--text-main)]">
                       {formatStock(ing.stock, ing.unidad)}
                     </td>
-                    <td className="py-3 text-stone-500 dark:text-stone-400 font-mono">
+                    <td className="py-3 text-[var(--text-muted)] font-mono">
                       {formatStock(ing.stock_minimo, ing.unidad)}
                     </td>
                     <td className="py-3">
-                      {isLow ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EF4444]/15 text-[#EF4444]">
+                      {isAgotado ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                          <AlertTriangle className="w-3 h-3" />
+                          Agotado
+                        </span>
+                      ) : isLow ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
                           <AlertTriangle className="w-3 h-3" />
                           Bajo mínimo
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#10B981]/15 text-[#10B981]">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                           <CheckCircle2 className="w-3 h-3" />
                           Óptimo
                         </span>
@@ -275,7 +449,7 @@ export const InventarioTab: React.FC = () => {
                     <td className="py-3 text-right">
                       <button
                         onClick={() => handleOpenAdjust(ing)}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 transition-colors cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[var(--bg-main)] hover:bg-[var(--brand-accent)]/10 text-[var(--text-main)] border border-[var(--border-soft)] transition-colors cursor-pointer"
                       >
                         Ajustar
                       </button>
@@ -293,22 +467,22 @@ export const InventarioTab: React.FC = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.14 }}
-        className="bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-5 shadow-xs"
+        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-5 shadow-xs"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-stone-400" />
-            <h3 className="text-sm font-bold text-stone-900 dark:text-white">
-              Historial de movimientos de bodega
+            <History className="w-4 h-4 text-[var(--brand-accent)]" />
+            <h3 className="text-sm font-bold text-[var(--text-main)]">
+              Kardex: Historial de Entradas, Salidas y Mermas
             </h3>
           </div>
-          <span className="text-xs text-stone-500 dark:text-stone-400">
+          <span className="text-xs text-[var(--text-muted)]">
             Últimos {movimientos.length} registros
           </span>
         </div>
 
         {movimientos.length === 0 ? (
-          <div className="p-8 text-center text-stone-400 text-xs">
+          <div className="p-8 text-center text-[var(--text-muted)] text-xs">
             No se han registrado movimientos de inventario todavía.
           </div>
         ) : (
@@ -316,7 +490,7 @@ export const InventarioTab: React.FC = () => {
             variants={fastStaggerContainerVariants}
             initial="hidden"
             animate="visible"
-            className="divide-y divide-stone-100 dark:divide-stone-800 border border-stone-200 dark:border-stone-800 rounded-xl overflow-hidden"
+            className="divide-y divide-[var(--border-soft)] border border-[var(--border-soft)] rounded-xl overflow-hidden"
           >
             {movimientos.map((mov) => {
               const isPositive = mov.delta > 0;
@@ -324,7 +498,7 @@ export const InventarioTab: React.FC = () => {
                 <motion.div
                   key={mov.id}
                   variants={tableRowVariants}
-                  className="flex items-center justify-between p-3.5 hover:bg-stone-50 dark:hover:bg-stone-900/40 transition-colors"
+                  className="flex items-center justify-between p-3.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <div
@@ -341,11 +515,11 @@ export const InventarioTab: React.FC = () => {
                       )}
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-stone-900 dark:text-white">
+                      <div className="text-sm font-bold text-[var(--text-main)]">
                         {capitalizeFirst(mov.ingrediente)}
                       </div>
-                      <div className="text-xs text-stone-500 dark:text-stone-400">
-                        {mov.motivo}
+                      <div className="text-xs text-[var(--text-muted)]">
+                        {mov.motivo} {mov.referencia ? `(${mov.referencia})` : ''}
                       </div>
                     </div>
                   </div>
@@ -358,7 +532,7 @@ export const InventarioTab: React.FC = () => {
                     >
                       {isPositive ? `+${mov.delta}` : mov.delta}
                     </div>
-                    <div className="text-[10px] text-stone-400">
+                    <div className="text-[10px] text-[var(--text-muted)]">
                       {formatBogotaDateTime(mov.created_at)}
                     </div>
                   </div>
@@ -377,15 +551,15 @@ export const InventarioTab: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-6 shadow-xl space-y-4"
+              className="w-full max-w-md bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-6 shadow-xl space-y-4"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-stone-900 dark:text-white">
+                <h3 className="text-base font-bold text-[var(--text-main)]">
                   Ajustar Inventario: {capitalizeFirst(selectedIngredient.ingrediente)}
                 </h3>
                 <button
                   onClick={() => setAdjustModalOpen(false)}
-                  className="p-1 rounded-lg text-stone-400 hover:text-white cursor-pointer"
+                  className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -398,8 +572,8 @@ export const InventarioTab: React.FC = () => {
                     onClick={() => setAdjustType('sumar')}
                     className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors cursor-pointer ${
                       adjustType === 'sumar'
-                        ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-700'
+                        ? 'bg-emerald-600 text-white border-transparent'
+                        : 'bg-[var(--bg-main)] text-[var(--text-muted)] border-[var(--border-soft)]'
                     }`}
                   >
                     + Sumar (Entrada / Compra)
@@ -409,8 +583,8 @@ export const InventarioTab: React.FC = () => {
                     onClick={() => setAdjustType('restar')}
                     className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors cursor-pointer ${
                       adjustType === 'restar'
-                        ? 'bg-rose-600 text-white border-rose-600'
-                        : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-700'
+                        ? 'bg-rose-600 text-white border-transparent'
+                        : 'bg-[var(--bg-main)] text-[var(--text-muted)] border-[var(--border-soft)]'
                     }`}
                   >
                     - Restar (Merma / Ajuste)
@@ -418,9 +592,31 @@ export const InventarioTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                    Cantidad ({selectedIngredient.unidad}):
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-[var(--text-main)]">
+                      Cantidad a modificar ({selectedIngredient.unidad}):
+                    </label>
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      Pre-selección rápida:
+                    </span>
+                  </div>
+                  {/* Quick amount chips */}
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {[1, 5, 10, 20, 50].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setAdjustAmount(String(num))}
+                        className={`px-2.5 py-1 text-xs font-mono font-bold rounded-lg border transition-colors cursor-pointer ${
+                          adjustAmount === String(num)
+                            ? 'bg-[var(--brand-accent)] text-white border-transparent'
+                            : 'bg-[var(--bg-main)] text-[var(--text-main)] border-[var(--border-soft)] hover:border-[var(--brand-accent)]/50'
+                        }`}
+                      >
+                        {adjustType === 'sumar' ? `+${num}` : `-${num}`}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="number"
                     min="0.01"
@@ -428,21 +624,38 @@ export const InventarioTab: React.FC = () => {
                     value={adjustAmount}
                     onChange={(e) => setAdjustAmount(e.target.value)}
                     placeholder="0"
-                    className="w-full h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-sm font-mono font-bold text-stone-900 dark:text-white focus:outline-none"
+                    className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-sm font-mono font-bold text-[var(--text-main)] focus:outline-none"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                    Motivo o razón del ajuste:
+                  <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+                    Motivo o razón del movimiento:
                   </label>
+                  {/* Quick reason chips */}
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {['Compra directa', 'Reposición semanal', 'Porcionamiento de carne', 'Cuadre físico'].map((motivo) => (
+                      <button
+                        key={motivo}
+                        type="button"
+                        onClick={() => setAdjustReason(motivo)}
+                        className={`px-2 py-0.5 text-[10px] font-medium rounded-md border transition-colors cursor-pointer ${
+                          adjustReason === motivo
+                            ? 'bg-[var(--brand-accent)] text-white border-transparent'
+                            : 'bg-[var(--bg-main)] text-[var(--text-muted)] border-[var(--border-soft)] hover:text-[var(--text-main)]'
+                        }`}
+                      >
+                        {motivo}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="text"
                     value={adjustReason}
                     onChange={(e) => setAdjustReason(e.target.value)}
-                    placeholder="Ej. Merma de cocina, compra de emergencia..."
-                    className="w-full h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-sm text-stone-900 dark:text-white focus:outline-none"
+                    placeholder="Ej. Compra directa, porcionamiento, merma..."
+                    className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-sm text-[var(--text-main)] focus:outline-none"
                     required
                   />
                 </div>
@@ -451,17 +664,121 @@ export const InventarioTab: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setAdjustModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-stone-600 dark:text-stone-300 cursor-pointer"
+                    className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={isAdjusting || !adjustAmount}
-                    style={{ backgroundColor: paletteConfig.primaryHex }}
+                    style={{ backgroundColor: paletteConfig.accent }}
                     className="px-4 py-2 text-xs font-bold text-white rounded-xl cursor-pointer disabled:opacity-50"
                   >
                     {isAdjusting ? 'Guardando...' : 'Aplicar Ajuste'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: Reportar Daño / Avería / Faltante */}
+      <AnimatePresence>
+        {damageModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-[var(--bg-card)] rounded-2xl border border-rose-500/30 p-6 shadow-xl space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-rose-500">
+                  <PackageX className="w-5 h-5" />
+                  <h3 className="text-base font-bold text-[var(--text-main)]">
+                    Reportar Daño, Avería o Faltante
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setDamageModalOpen(false)}
+                  className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-[var(--text-muted)]">
+                Registra mermas por vencimiento, roturas de cubiertos/empaques, caída de alimentos o faltantes en conteo físico.
+              </p>
+
+              <form onSubmit={handleReportDamage} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+                    Insumo afectado:
+                  </label>
+                  <select
+                    value={damageIngredient}
+                    onChange={(e) => setDamageIngredient(e.target.value)}
+                    required
+                    className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-xs font-medium text-[var(--text-main)] focus:outline-none"
+                  >
+                    <option value="">Selecciona el insumo...</option>
+                    {ingredientes.map((i) => (
+                      <option key={i.ingrediente} value={i.ingrediente}>
+                        {capitalizeFirst(i.ingrediente)} (Stock: {formatStock(i.stock, i.unidad)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+                    Cantidad dañada o faltante:
+                  </label>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    value={damageAmount}
+                    onChange={(e) => setDamageAmount(e.target.value)}
+                    placeholder="0"
+                    required
+                    className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-sm font-mono font-bold text-[var(--text-main)] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+                    Motivo del daño o avería:
+                  </label>
+                  <select
+                    value={damageReason}
+                    onChange={(e) => setDamageReason(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-xs text-[var(--text-main)] focus:outline-none mb-1.5"
+                  >
+                    <option value="Alimento averiado o descompuesto">Alimento averiado o descompuesto</option>
+                    <option value="Desechables o empaques rotos/quebrados">Desechables o empaques rotos/quebrados</option>
+                    <option value="Producto quemado o dañado en cocción">Producto quemado o dañado en cocción</option>
+                    <option value="Faltante no explicado en conteo">Faltante no explicado en conteo</option>
+                    <option value="Fecha de vencimiento alcanzada">Fecha de vencimiento alcanzada</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setDamageModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isReportingDamage || !damageIngredient || !damageAmount}
+                    className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl cursor-pointer disabled:opacity-50"
+                  >
+                    {isReportingDamage ? 'Registrando...' : 'Descontar por Avería'}
                   </button>
                 </div>
               </form>
@@ -478,15 +795,15 @@ export const InventarioTab: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-6 shadow-xl space-y-4"
+              className="w-full max-w-md bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-6 shadow-xl space-y-4"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-stone-900 dark:text-white">
-                  Registrar Nuevo Ingrediente
+                <h3 className="text-base font-bold text-[var(--text-main)]">
+                  Registrar Nuevo Insumo
                 </h3>
                 <button
                   onClick={() => setNewIngredientModalOpen(false)}
-                  className="p-1 rounded-lg text-stone-400 hover:text-white cursor-pointer"
+                  className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -494,38 +811,60 @@ export const InventarioTab: React.FC = () => {
 
               <form onSubmit={handleCreateIngredient} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                  <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
                     Nombre del insumo:
                   </label>
                   <input
                     type="text"
                     value={newName}
                     onChange={(e) => setNewName(normalizeUserInput(e.target.value))}
-                    placeholder="Ej. Crema agria, queso costeño..."
-                    className="w-full h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-sm text-stone-900 dark:text-white focus:outline-none"
+                    placeholder="Ej. Pechuga de pavo, toallas desechables..."
+                    className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-sm text-[var(--text-main)] focus:outline-none"
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                    Unidad de medida:
-                  </label>
-                  <select
-                    value={newUnit}
-                    onChange={(e) => setNewUnit(e.target.value as UnidadMedida)}
-                    className="w-full h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-sm text-stone-900 dark:text-white focus:outline-none"
-                  >
-                    <option value="g">Gramos (g)</option>
-                    <option value="kg">Kilogramos (kg)</option>
-                    <option value="lb">Libras (lb)</option>
-                    <option value="unidad">Unidades (unidad)</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+                      Categoría:
+                    </label>
+                    <select
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value as TipoInsumo)}
+                      className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-xs text-[var(--text-main)] focus:outline-none"
+                    >
+                      <option value="carnes_proteinas">Carnes y Proteínas</option>
+                      <option value="tuberculos_vegetales">Tubérculos, Plátanos y Vegetales</option>
+                      <option value="verduras_hortalizas">Verduras y Hortalizas</option>
+                      <option value="granos_legumbres">Granos, Legumbres y Pastas</option>
+                      <option value="salsas_condimentos">Salsas, Condimentos y Aceites</option>
+                      <option value="desechables">Desechables y Cubiertos</option>
+                      <option value="otro">Otros Ingredientes</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+                      Unidad de medida:
+                    </label>
+                    <select
+                      value={newUnit}
+                      onChange={(e) => setNewUnit(e.target.value as UnidadMedida)}
+                      className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-xs text-[var(--text-main)] focus:outline-none"
+                    >
+                      <option value="lb">Libras (lb)</option>
+                      <option value="kg">Kilogramos (kg)</option>
+                      <option value="g">Gramos (g)</option>
+                      <option value="unidad">Unidades (unidad)</option>
+                      <option value="porcion">Porciones</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
                       Stock inicial:
                     </label>
                     <input
@@ -534,13 +873,13 @@ export const InventarioTab: React.FC = () => {
                       step="any"
                       value={newStock}
                       onChange={(e) => setNewStock(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-sm font-mono font-bold text-stone-900 dark:text-white focus:outline-none"
+                      className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-sm font-mono font-bold text-[var(--text-main)] focus:outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                      Stock mínimo:
+                    <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+                      Stock mínimo de alerta:
                     </label>
                     <input
                       type="number"
@@ -548,7 +887,7 @@ export const InventarioTab: React.FC = () => {
                       step="any"
                       value={newMinimo}
                       onChange={(e) => setNewMinimo(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-sm font-mono font-bold text-stone-900 dark:text-white focus:outline-none"
+                      className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-sm font-mono font-bold text-[var(--text-main)] focus:outline-none"
                       required
                     />
                   </div>
@@ -558,14 +897,14 @@ export const InventarioTab: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setNewIngredientModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-stone-600 dark:text-stone-300 cursor-pointer"
+                    className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={isCreating || !newName.trim()}
-                    style={{ backgroundColor: paletteConfig.primaryHex }}
+                    style={{ backgroundColor: paletteConfig.accent }}
                     className="px-4 py-2 text-xs font-bold text-white rounded-xl cursor-pointer disabled:opacity-50"
                   >
                     {isCreating ? 'Creando...' : 'Crear Insumo'}

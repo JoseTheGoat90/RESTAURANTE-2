@@ -3,15 +3,35 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type UnidadMedida = 'g' | 'kg' | 'lb' | 'unidad';
+export type UnidadMedida = 'g' | 'kg' | 'lb' | 'unidad' | 'porcion' | 'paquete';
 
-export type CategoriaGasto = 'ingredientes' | 'servicios' | 'nomina' | 'otros';
+export type TipoInsumo =
+  | 'granos_legumbres'
+  | 'tuberculos_vegetales'
+  | 'verduras_hortalizas'
+  | 'carnes_proteinas'
+  | 'otros_ingredientes'
+  | 'salsas_condimentos'
+  | 'desechables'
+  | 'limpieza'
+  | 'otro';
+
+export type CategoriaGasto = 'servicios' | 'seguridad' | 'insumos' | 'otros' | 'nomina' | 'ingredientes';
+
+export type MetodoPago = 'efectivo' | 'nequi' | 'tarjeta' | 'credito';
+
+export type EstadoGasto = 'pagado' | 'pendiente';
+
+export type TipoPedido = 'mesa' | 'domicilio' | 'para_llevar';
+
+export type TamanoPorcion = 'media' | 'entera';
 
 export interface Ingrediente {
   ingrediente: string;
   unidad: string;
   stock: number;
   stock_minimo: number;
+  tipo_insumo?: TipoInsumo;
 }
 
 export interface Receta {
@@ -19,9 +39,13 @@ export interface Receta {
   ingrediente: string;
   cantidad: number;
   precio: number;
+  precio_media?: number;
+  precio_entera?: number;
+  precio_llevar?: number;
+  precio_mesa?: number;
 }
 
-export type EstadoComanda = 'nuevo' | 'en_cocina' | 'listo' | 'pagado' | 'cancelado';
+export type EstadoComanda = 'nuevo' | 'en_cocina' | 'en_camino' | 'listo' | 'entregado' | 'pagado' | 'cancelado';
 
 export interface Venta {
   id_operacion: string;
@@ -29,7 +53,15 @@ export interface Venta {
   plato: string;
   cantidad: number;
   total: number;
+  tamano_porcion?: TamanoPorcion;
   estado?: EstadoComanda;
+  tipo_pedido?: TipoPedido;
+  mesa?: string;
+  direccion_domicilio?: string;
+  telefono_contacto?: string;
+  acompanamiento?: string;
+  con_ensalada?: boolean;
+  con_salsas?: boolean;
   created_at?: string;
 }
 
@@ -39,6 +71,10 @@ export interface Gasto {
   concepto: string;
   categoria: CategoriaGasto | string;
   valor: number;
+  periodo?: string;
+  metodo_pago?: MetodoPago | string;
+  responsable?: string;
+  estado?: EstadoGasto;
   created_at?: string;
 }
 
