@@ -221,3 +221,30 @@ export function cleanAsterisks(text: string | null | undefined): string {
   if (!text) return '';
   return text.replace(/\*\*/g, '').replace(/\*/g, '');
 }
+
+/**
+ * Formats a numeric string or number with Colombian thousands separators (dots),
+ * e.g. "45000" -> "45.000", 120000 -> "120.000".
+ */
+export function formatThousands(val: string | number | null | undefined): string {
+  if (val === null || val === undefined || val === '') return '';
+  const digits = String(val).replace(/\D/g, '');
+  if (!digits) return '';
+  const num = parseInt(digits, 10);
+  if (isNaN(num)) return '';
+  return new Intl.NumberFormat('es-CO').format(num);
+}
+
+/**
+ * Extracts integer monetary value from any user input (handling dots, commas, currency symbols, spaces).
+ * e.g. "45.000" -> 45000, "$ 120.000" -> 120000, "35000" -> 35000
+ */
+export function parseCOPInput(val: string | number | null | undefined): number {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : Math.round(val);
+  const digits = String(val).replace(/\D/g, '');
+  if (!digits) return 0;
+  const num = parseInt(digits, 10);
+  return isNaN(num) ? 0 : num;
+}
+

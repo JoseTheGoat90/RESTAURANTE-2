@@ -12,6 +12,8 @@ import {
   capitalizeFirst,
   generateOperationId,
   normalizeUserInput,
+  formatThousands,
+  parseCOPInput,
 } from '../utils/formatters.ts';
 import { CategoriaGasto, MetodoPago, EstadoGasto } from '../types.ts';
 import {
@@ -30,6 +32,7 @@ import {
   AlertCircle,
   Check,
   User,
+  X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
@@ -104,12 +107,15 @@ export const GastosTab: React.FC = () => {
 
   const [categoria, setCategoria] = useState<CategoriaGasto>('insumos');
   const [concepto, setConcepto] = useState<string>('compra de carne de res');
-  const [valor, setValor] = useState<string>('120000');
+  const [valor, setValor] = useState<string>('');
   const [periodo, setPeriodo] = useState<string>('Noviembre 2026');
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [responsable, setResponsable] = useState<string>('Administrador');
   const [estadoGasto, setEstadoGasto] = useState<EstadoGasto>('pagado');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Valor numérico entero calculado en COP
+  const numValor = useMemo(() => parseCOPInput(valor), [valor]);
 
   // Filter for history: All, Paid, Pending
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'pagado' | 'pendiente'>('todos');
@@ -130,13 +136,12 @@ export const GastosTab: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanConcepto = concepto.trim();
-    const numValor = parseFloat(valor);
 
     if (!cleanConcepto) {
       showNotification({ ok: false, mensaje: 'Por favor selecciona o ingresa un concepto de gasto' });
       return;
     }
-    if (isNaN(numValor) || numValor <= 0) {
+    if (numValor <= 0) {
       showNotification({ ok: false, mensaje: 'Ingresa un valor monetario válido mayor a cero' });
       return;
     }
@@ -306,9 +311,9 @@ export const GastosTab: React.FC = () => {
               <label className="text-xs font-bold text-[var(--text-main)]">
                 3. Valor monetario del gasto:
               </label>
-              {valor && parseFloat(valor) > 0 && (
+              {numValor > 0 && (
                 <span className="text-sm font-extrabold text-[var(--brand-accent)] font-mono">
-                  {formatCOP(parseFloat(valor))}
+                  {formatCOP(numValor)}
                 </span>
               )}
             </div>
@@ -316,12 +321,12 @@ export const GastosTab: React.FC = () => {
             {/* Quick Amount Chips */}
             <div className="flex flex-wrap items-center gap-1.5">
               {PRE_MONTOS.map((monto) => {
-                const isSelected = valor === String(monto.valor);
+                const isSelected = numValor === monto.valor;
                 return (
                   <button
                     key={monto.valor}
                     type="button"
-                    onClick={() => setValor(String(monto.valor))}
+                    onClick={() => setValor(formatThousands(monto.valor))}
                     className={`h-9 px-3 rounded-xl border text-xs font-bold font-mono transition-colors cursor-pointer ${
                       isSelected
                         ? 'bg-[var(--brand-accent)] text-white border-transparent shadow-xs'
@@ -335,19 +340,28 @@ export const GastosTab: React.FC = () => {
             </div>
 
             <div className="relative mt-2">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-bold text-sm">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-bold text-sm select-none">
                 $
               </span>
               <input
-                type="number"
-                min="1"
-                step="100"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
                 value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                placeholder="O escribe el monto exacto en pesos..."
-                className="w-full h-11 pl-8 pr-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-main)] text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
-                required
+                onChange={(e) => setValor(formatThousands(e.target.value))}
+                placeholder="Escribe el monto exacto en pesos (ej: 35.000)..."
+                className="w-full h-11 pl-8 pr-10 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-main)] text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
               />
+              {valor && (
+                <button
+                  type="button"
+                  onClick={() => setValor('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)] p-1 rounded-md transition-colors cursor-pointer"
+                  title="Borrar monto"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -481,7 +495,7 @@ export const GastosTab: React.FC = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isSubmitting || !concepto.trim() || !valor}
+            disabled={isSubmitting || !concepto.trim() || numValor <= 0}
             style={{ backgroundColor: paletteConfig.accent }}
             className="w-full h-13 rounded-xl text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50 active:scale-[0.99]"
           >
@@ -493,7 +507,7 @@ export const GastosTab: React.FC = () => {
             ) : (
               <>
                 <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-                <span>Registrar Gasto Operativo · {formatCOP(parseFloat(valor) || 0)}</span>
+                <span>Registrar Gasto Operativo {numValor > 0 ? `· ${formatCOP(numValor)}` : ''}</span>
               </>
             )}
           </button>
