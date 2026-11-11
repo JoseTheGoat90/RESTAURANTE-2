@@ -275,7 +275,7 @@ export async function exportarExcel(d: DatosExportacion) {
   car.getCell(3, 1).value = 'Planilla de porciones (estado actual)';
   car.getCell(3, 1).font = { bold: true, color: { argb: 'FFC2571B' } };
   const filasP = d.porciones.map((p) => [cap(p.item), cap(p.grupo), p.existente, p.entradas, p.ventas, p.total, p.minimo || null, estadoPorcion(p)]);
-  let fC = tabla(car, 4, ['Corte / plato', 'Grupo', 'Existente', 'Entradas', 'Ventas', 'Total', 'Mínimo', 'Estado'], filasP, [null, null, '#,##0', '#,##0', '#,##0', '#,##0', '#,##0', null], [3, 4, 5, 6]);
+  let fC = tabla(car, 4, ['Corte / plato', 'Grupo', 'Existente', 'Entradas', 'Ventas', 'Total', 'Mínimo', 'Estado'], filasP, [null, null, 'General', 'General', 'General', 'General', 'General', null], [3, 4, 5, 6]);
   for (let i = 0; i < filasP.length; i++) {
     const c = car.getCell(5 + i, 8);
     if (c.value !== 'OK') c.font = { bold: true, color: { argb: 'FFC0262D' } };
