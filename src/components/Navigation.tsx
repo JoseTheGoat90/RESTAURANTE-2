@@ -11,9 +11,11 @@ import {
   Boxes,
   BarChart3,
   Bot,
+  ChefHat,
+  ClipboardCheck,
 } from 'lucide-react';
 
-export type TabId = 'resumen' | 'vender' | 'gastos' | 'inventario' | 'reporte' | 'asistente';
+export type TabId = 'resumen' | 'vender' | 'cocina' | 'checklists' | 'gastos' | 'inventario' | 'reporte' | 'asistente';
 export type TabType = TabId;
 
 interface NavigationProps {
@@ -46,7 +48,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   const allItems: NavItem[] = [
     { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
-    { id: 'vender', label: 'Vender', icon: UtensilsCrossed },
+    { id: 'vender', label: 'Pedidos', icon: UtensilsCrossed },
+    { id: 'cocina', label: 'Cocina', icon: ChefHat },
+    { id: 'checklists', label: 'Checklists', icon: ClipboardCheck },
     { id: 'gastos', label: 'Gastos', icon: Receipt },
     { id: 'inventario', label: 'Inventario', icon: Boxes, badge: alertCount },
     { id: 'reporte', label: 'Reportes', icon: BarChart3 },
@@ -92,7 +96,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Mobile Fixed Bottom Nav Bar */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-header)]/95 backdrop-blur-md border-t border-[var(--border-soft)] transition-colors pb-safe">
-        <div className="grid grid-cols-6 items-center h-16 px-1">
+        <div className="grid items-center h-16 px-1" style={{ gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))` }}>
           {items.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;

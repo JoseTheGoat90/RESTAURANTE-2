@@ -132,7 +132,7 @@ export const ReporteTab: React.FC = () => {
   const isProjectedMarginPositive = projectedMonthlyNet >= 0;
 
   return (
-    <div className="space-y-6 pb-20 sm:pb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-6 pb-20 sm:pb-8">
       {/* Header Filter Card */}
       <motion.div
         initial={{ opacity: 0, y: 14 }}

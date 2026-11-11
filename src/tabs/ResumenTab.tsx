@@ -7,6 +7,8 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
 import { AdminPanel } from '../components/AdminPanel.tsx';
+import { TableroPanel } from '../components/TableroPanel.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
 import { formatCOP, formatBogotaDateTime, capitalizeFirst, formatStock } from '../utils/formatters.ts';
 import { RESTAURANT_IMAGES } from '../assets/images.ts';
 import {
@@ -57,13 +59,17 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
     }
   };
   const { paletteConfig } = useTheme();
+  const puedeVerFinanzas = useAuth().puede('ver_finanzas');
 
   const balance = reporteHoy.balance;
   const isBalancePositive = balance >= 0;
   const bajoMinimo = reporteHoy.ingredientes_bajo_minimo || [];
 
   return (
-    <div className="space-y-6 pb-20 sm:pb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-6 pb-20 sm:pb-8">
+      {/* Tablero de monitoreo del dueño (migración 008) */}
+      {puedeVerFinanzas && <TableroPanel />}
+
       {/* Hero Gourmet Banner */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}

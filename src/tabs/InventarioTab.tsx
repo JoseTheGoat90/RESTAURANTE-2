@@ -14,6 +14,8 @@ import {
   normalizeUserInput,
 } from '../utils/formatters.ts';
 import { RESTAURANT_IMAGES } from '../assets/images.ts';
+import { VencimientosPanel } from '../components/VencimientosPanel.tsx';
+import { PlanillaPorciones } from '../components/PlanillaPorciones.tsx';
 import { Ingrediente, UnidadMedida, TipoInsumo } from '../types.ts';
 import {
   Boxes,
@@ -272,7 +274,7 @@ export const InventarioTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20 sm:pb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-6 pb-20 sm:pb-8">
       {/* Header Banner */}
       <motion.div
         initial={{ opacity: 0, y: 14 }}
@@ -350,6 +352,12 @@ export const InventarioTab: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Lotes por vencer y dinero en riesgo (migración 007) */}
+      <VencimientosPanel />
+
+      {/* Planilla de porciones con el formato de la hoja del restaurante (migración 008) */}
+      <PlanillaPorciones />
 
       {/* Inventory Table with Category Filters */}
       <motion.div

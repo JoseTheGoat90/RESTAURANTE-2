@@ -70,7 +70,7 @@ export async function fetchRecetas({ token, onAuthError }: FetchOptions): Promis
 }
 
 export async function fetchVentas(limit = 50, { token, onAuthError }: FetchOptions): Promise<Venta[]> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/ventas?select=id_operacion,fecha,plato,categoria,cantidad,precio_unitario,total,estado,tipo_pedido,mesa,tamano_porcion,acompanamiento,con_ensalada,con_salsas,cliente,direccion_domicilio,telefono_contacto,notas,metodo_pago,pago_estado,domiciliario,registrado_por,cobrado_por,estacion,created_at&order=created_at.desc&limit=${limit}`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/ventas?select=id_operacion,fecha,plato,categoria,cantidad,precio_unitario,total,estado,tipo_pedido,mesa,tamano_porcion,acompanamiento,con_ensalada,con_salsas,cliente,direccion_domicilio,telefono_contacto,notas,metodo_pago,pago_estado,domiciliario,registrado_por,cobrado_por,estacion,comanda_id,created_at&order=created_at.desc&limit=${limit}`, {
     headers: getSupabaseHeaders(token),
   });
   return handleResponse<Venta[]>(res, onAuthError);

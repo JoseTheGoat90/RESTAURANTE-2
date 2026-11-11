@@ -149,6 +149,7 @@ export interface Venta {
   registrado_por?: string;
   cobrado_por?: string;
   estacion?: string;
+  comanda_id?: string | null; // pedido de varios productos (migración 008)
   created_at?: string;
 }
 

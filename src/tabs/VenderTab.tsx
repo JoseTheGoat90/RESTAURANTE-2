@@ -46,6 +46,7 @@ import {
   Info,
 } from 'lucide-react';
 import { TipoPedido, EstadoComanda, TamanoPorcion, Producto, MetodoPago } from '../types.ts';
+import { ComprobanteModal, ComprobantePendiente, METODOS_CON_COMPROBANTE } from '../components/ComprobanteModal.tsx';
 
 type CategoriaPlato = 'todos' | 'asados' | 'almuerzos_sopas' | 'bebidas';
 
@@ -295,7 +296,7 @@ const METODOS_PAGO: { id: MetodoPago; label: string }[] = [
   { id: 'transferencia', label: 'Transferencia' },
 ];
 
-const ACOMPANAMIENTOS_PRESET: AcompanamientoOption[] = [
+export const ACOMPANAMIENTOS_PRESET: AcompanamientoOption[] = [
   { id: 'patacon', label: 'Patacón frito (2 un.)', insumo: 'patacón', cantidad: 2, unidad: 'unidad' },
   { id: 'bollo', label: 'Bollo tradicional (1 un.)', insumo: 'bollo', cantidad: 1, unidad: 'unidad' },
   { id: 'yuca', label: 'Yuca cocida (porción)', insumo: 'yuca', cantidad: 0.35, unidad: 'lb' },
@@ -320,6 +321,12 @@ export const VenderTab: React.FC = () => {
   const puedeVender = puede('vender');
   const puedeCobrar = puede('cobrar');
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
+  // Cobro por Nequi / transferencia: se pide la foto del comprobante
+  const [comprobante, setComprobante] = useState<ComprobantePendiente | null>(null);
+  const cobrarPedido = async (id: string, total: number, descripcion: string) => {
+    const res = await updateOrderStatus(id, 'pagado', { metodo_pago: metodoPago });
+    if (res.ok && METODOS_CON_COMPROBANTE.includes(metodoPago)) setComprobante({ ventaId: id, total, metodo: metodoPago, descripcion });
+  };
 
   // Menú: el catálogo real de la base. Si aún no hay productos cargados se usa el menú del documento.
   const menu = useMemo(() => (productos.length ? menuDesdeProductos(productos) : MENU_OFICIAL_DOCUMENTO), [productos]);
@@ -467,6 +474,8 @@ export const VenderTab: React.FC = () => {
       showNotification(result);
 
       if (result.ok) {
+        if (estadoComanda === 'pagado' && puedeCobrar && METODOS_CON_COMPROBANTE.includes(metodoPago))
+          setComprobante({ ventaId: opId, total: totalPrice, metodo: metodoPago, descripcion: `${cantidad}× ${currentItem.plato}` });
         setCantidad(1);
         if (tipoPedido === 'domicilio') {
           setDireccion('');
@@ -501,7 +510,7 @@ export const VenderTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20 sm:pb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-6 pb-20 sm:pb-8">
       {/* Top Banner Grid */}
       <motion.div
         initial={{ opacity: 0, y: 14 }}
@@ -1328,7 +1337,7 @@ export const VenderTab: React.FC = () => {
                           </button>
                         )}
                         {puedeCobrar && !cobrada && (
-                          <button type="button" onClick={() => updateOrderStatus(venta.id_operacion, 'pagado', { metodo_pago: metodoPago })} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 transition-colors cursor-pointer" title={`Cobrar (${metodoPago})`}>
+                          <button type="button" onClick={() => void cobrarPedido(venta.id_operacion, venta.total, `${venta.cantidad}× ${venta.plato}`)} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 transition-colors cursor-pointer" title={`Cobrar (${metodoPago})`}>
                             Cobrar
                           </button>
                         )}
@@ -1355,6 +1364,7 @@ export const VenderTab: React.FC = () => {
           </motion.div>
         )}
       </motion.div>
+      {comprobante && <ComprobanteModal pendiente={comprobante} onCerrar={() => setComprobante(null)} />}
     </div>
   );
 };
