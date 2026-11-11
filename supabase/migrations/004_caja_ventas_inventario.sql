@@ -71,7 +71,15 @@ $$;
 
 -- El id anterior ('mov-' + milisegundos) choca cuando una venta genera
 -- varios movimientos en el mismo instante.
-ALTER TABLE public.movimientos_inventario ALTER COLUMN id SET DEFAULT ('mov-' || gen_random_uuid()::text);
+DO $$
+BEGIN
+  IF (SELECT is_identity FROM information_schema.columns WHERE table_schema = 'public'
+        AND table_name = 'movimientos_inventario' AND column_name = 'id') = 'NO'
+     AND (SELECT data_type FROM information_schema.columns WHERE table_schema = 'public'
+        AND table_name = 'movimientos_inventario' AND column_name = 'id') = 'text' THEN
+    ALTER TABLE public.movimientos_inventario ALTER COLUMN id SET DEFAULT ('mov-' || gen_random_uuid()::text);
+  END IF;
+END $$;
 ALTER TABLE public.movimientos_inventario ADD COLUMN IF NOT EXISTS usuario        TEXT;
 ALTER TABLE public.movimientos_inventario ADD COLUMN IF NOT EXISTS stock_anterior NUMERIC(12,3);
 ALTER TABLE public.movimientos_inventario ADD COLUMN IF NOT EXISTS stock_nuevo    NUMERIC(12,3);
@@ -298,6 +306,17 @@ ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS precio_llevar NUMERIC(12,2
 ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS precio_media  NUMERIC(12,2);   -- asados: porción media
 ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS disponible    BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS estacion      TEXT NOT NULL DEFAULT 'cocina';
+-- El precio de las recetas solo se sincroniza cuando el producto tiene precio
+CREATE OR REPLACE FUNCTION public.tg_producto_sync() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.nombre <> OLD.nombre THEN
+    UPDATE public.recetas SET plato = NEW.nombre WHERE LOWER(TRIM(plato)) = LOWER(TRIM(OLD.nombre));
+  END IF;
+  IF NEW.precio IS NOT NULL THEN
+    UPDATE public.recetas SET precio = NEW.precio WHERE LOWER(TRIM(plato)) = LOWER(TRIM(NEW.nombre));
+  END IF;
+  RETURN NEW;
+END $$;
 -- precio = mesa (almuerzos) / porción entera (asados) / precio único (bebidas)
 
 CREATE OR REPLACE FUNCTION public.guardar_producto(p_nombre text, p_categoria text, p_precio numeric,

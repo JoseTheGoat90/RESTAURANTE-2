@@ -2,7 +2,7 @@
 
 Fecha: 2026-11-11. Rama: `claude/upbeat-feynman-ojy0ac`.
 
-> **Estado:** la migración `supabase/migrations/004_caja_ventas_inventario.sql` **todavía no está aplicada** en la base de producción. Se probó completa en un PostgreSQL 16 local que replica el esquema (setup + migraciones 002, 003 y 004). Hasta aplicarla, la app publicada sigue con la base anterior y **la nueva versión del frontend no debe desplegarse antes de la migración**.
+> **Estado:** la migración 004 **se aplicó en Supabase el 2026-11-11** en tres partes (004a, 004b y 004c). Antes se guardó una copia de las tablas afectadas en el esquema `respaldo_20261111`. Se hizo una prueba en la base real dentro de una transacción que se deshizo al final, sin dejar datos.
 
 ## 1. Qué se implementó
 
@@ -84,7 +84,7 @@ Un correo que ya estaba autorizado y aún no tiene perfil se trata como administ
 También se comprobó que la app compila (`tsc` y `vite build`) y que en modo demo cargan Resumen, Vender e Inventario (corriente para llevar = $14.000).
 
 ## 3. Lo que falta o necesita información del restaurante
-1. **Aplicar la migración 004** en Supabase (hacer antes una copia de seguridad) y luego desplegar el frontend.
+1. ~~Aplicar la migración 004~~ (hecho). Diferencia encontrada en la base real: el identificador de `movimientos_inventario` ya era una columna identidad, así que la migración solo cambia ese valor por defecto si la columna es de texto.
 2. **Cuentas de los 13 empleados:** crear cada cuenta en Supabase (Authentication → Add user) y asignar su cargo con `guardar_perfil(correo, nombre, cargo)`. Pendiente de verificar con la base real: que los empleados nuevos también queden en `usuarios_autorizados` si las políticas antiguas lo exigen.
 3. **Consumos / recetas:** no se inventaron cantidades. Para que las ventas descuenten inventario, administración debe configurar con `guardar_consumo`:
    - cuántas porciones descuenta un asado medio y uno entero;
