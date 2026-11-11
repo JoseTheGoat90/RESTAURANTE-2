@@ -40,6 +40,7 @@ export const ReporteTab: React.FC = () => {
   const { paletteConfig } = useTheme();
 
   const [filterDate, setFilterDate] = useState<string>('');
+  const [filterHasta, setFilterHasta] = useState<string>('');
   const [reportData, setReportData] = useState(reporteHoy);
   const [isConsulting, setIsConsulting] = useState<boolean>(false);
 
@@ -51,11 +52,50 @@ export const ReporteTab: React.FC = () => {
     e.preventDefault();
     setIsConsulting(true);
     try {
-      const res = await generar_reporte(filterDate || null);
+      const res = await generar_reporte(filterDate || null, filterDate && filterHasta && filterHasta !== filterDate ? filterHasta : null);
       setReportData(res);
     } catch {} finally {
       setIsConsulting(false);
     }
+  };
+
+  /** Exporta el reporte consultado a CSV (se abre directamente en Excel). */
+  const exportarExcel = () => {
+    const filas: (string | number)[][] = [
+      ['Reporte', reportData.periodo || ''],
+      ['Ingresos (ventas cobradas)', reportData.total_ventas],
+      ['Gastos pagados', reportData.total_gastos],
+      ['Balance de ingresos y gastos registrados', reportData.balance],
+      ['Número de ventas', reportData.numero_ventas],
+      ['Gastos pendientes', reportData.gastos_pendientes ?? ''],
+      ['Compras', reportData.total_compras ?? ''],
+      [],
+      ['Producto', 'Unidades vendidas'],
+      ...Object.entries(reportData.unidades_por_plato || {}),
+      [],
+      ['Categoría de venta', 'Valor'],
+      ...Object.entries(reportData.ventas_por_categoria || {}),
+      [],
+      ['Modalidad', 'Valor'],
+      ...Object.entries(reportData.ventas_por_modalidad || {}),
+      [],
+      ['Medio de pago', 'Valor'],
+      ...Object.entries(reportData.ventas_por_metodo || {}),
+      [],
+      ['Categoría de gasto', 'Valor'],
+      ...Object.entries(reportData.gastos_por_categoria || {}),
+      [],
+      ['Insumo bajo mínimo', 'Existencia', 'Mínimo', 'Unidad'],
+      ...(reportData.ingredientes_bajo_minimo || []).map((i) => [i.ingrediente, i.stock, i.stock_minimo, i.unidad]),
+    ];
+    const csv = filas.map((f) => f.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_${(reportData.periodo || 'hoy').replace(/\s+/g, '_')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const balance = reportData.balance;
@@ -125,6 +165,18 @@ export const ReporteTab: React.FC = () => {
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
                 className="h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 text-xs text-stone-900 dark:text-white focus:outline-none"
+                aria-label="Desde"
+              />
+            </div>
+            <div className="relative">
+              <input
+                type="date"
+                value={filterHasta}
+                min={filterDate || undefined}
+                onChange={(e) => setFilterHasta(e.target.value)}
+                className="h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 text-xs text-stone-900 dark:text-white focus:outline-none"
+                aria-label="Hasta (opcional)"
+                title="Hasta (opcional, para semana, mes o rango)"
               />
             </div>
             <button
@@ -135,6 +187,23 @@ export const ReporteTab: React.FC = () => {
             >
               <Calendar className="w-3.5 h-3.5" />
               <span>{filterDate ? 'Consultar' : 'Hoy'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={exportarExcel}
+              className="h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              title="Exportar a Excel (CSV)"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Excel</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              title="Imprimir o guardar como PDF"
+            >
+              <span>PDF</span>
             </button>
           </form>
         </div>
@@ -175,7 +244,7 @@ export const ReporteTab: React.FC = () => {
           variants={cardItemVariants}
           className="bg-white dark:bg-[#121212] rounded-2xl border border-stone-200 dark:border-stone-800 p-5 shadow-xs"
         >
-          <span className="text-xs font-bold text-stone-500 dark:text-stone-400">Balance Neto</span>
+          <span className="text-xs font-bold text-stone-500 dark:text-stone-400">Balance (ingresos − gastos)</span>
           <div
             className={`text-2xl font-extrabold font-mono mt-2 ${
               isBalancePositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -183,7 +252,7 @@ export const ReporteTab: React.FC = () => {
           >
             {formatCOP(balance)}
           </div>
-          <span className="text-xs text-stone-400 mt-1 block">Margen de utilidad</span>
+          <span className="text-xs text-stone-400 mt-1 block">No equivale a utilidad neta contable</span>
         </motion.div>
 
         <motion.div

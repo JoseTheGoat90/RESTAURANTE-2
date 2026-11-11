@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type UnidadMedida = 'g' | 'kg' | 'lb' | 'unidad' | 'porcion' | 'paquete';
+export type UnidadMedida = 'g' | 'kg' | 'lb' | 'l' | 'ml' | 'unidad' | 'porcion' | 'paquete' | 'bolsa' | 'botella';
 
 export type TipoInsumo =
   | 'granos_legumbres'
@@ -14,11 +14,88 @@ export type TipoInsumo =
   | 'salsas_condimentos'
   | 'desechables'
   | 'limpieza'
+  | 'bebidas'
   | 'otro';
 
-export type CategoriaGasto = 'servicios' | 'seguridad' | 'insumos' | 'otros' | 'nomina' | 'ingredientes';
+export type Rol = 'admin' | 'cocina' | 'parrilla' | 'mesera' | 'domicilios' | 'domiciliario';
 
-export type MetodoPago = 'efectivo' | 'nequi' | 'tarjeta' | 'credito';
+export type CategoriaProducto = 'almuerzos' | 'asados' | 'bebidas' | string;
+
+export interface Producto {
+  id?: number;
+  nombre: string;
+  categoria: CategoriaProducto;
+  precio: number | null; // mesa (almuerzos) · porción entera (asados) · precio único (bebidas)
+  precio_llevar: number | null;
+  precio_media: number | null;
+  presentacion?: string | null;
+  unidad?: string | null;
+  disponible: boolean;
+  activo: boolean;
+  estacion?: string;
+}
+
+export interface ItemPorciones {
+  item: string;
+  grupo: 'asado' | 'ejecutivo' | 'otro';
+  existente: number;
+  entradas: number;
+  ventas: number;
+  total: number;
+  minimo: number;
+  periodo_desde?: string;
+  activo: boolean;
+}
+
+export interface MovimientoPorciones {
+  id: number;
+  item: string;
+  tipo: 'existente' | 'entrada' | 'venta' | 'reversion' | 'ajuste' | 'cierre';
+  cantidad: number;
+  total_anterior: number | null;
+  total_nuevo: number | null;
+  motivo?: string;
+  referencia?: string;
+  usuario: string;
+  created_at: string;
+}
+
+export interface ConsumoProducto {
+  id: number;
+  producto: string;
+  variante: 'media' | 'entera' | 'mesa' | 'para_llevar' | 'domicilio' | null;
+  tipo: 'porcion' | 'ingrediente';
+  item: string;
+  cantidad: number;
+}
+
+export interface CajaActual {
+  id: number;
+  base: number;
+  abierta_por: string;
+  abierta_en: string;
+  numero_ventas: number;
+  ventas_efectivo: number;
+  ventas_otros: number;
+  ventas_por_metodo: Record<string, number>;
+  gastos_efectivo: number;
+  esperado: number;
+}
+
+export type CategoriaGasto =
+  | 'servicios'
+  | 'seguridad'
+  | 'compras'
+  | 'insumos'
+  | 'ingredientes'
+  | 'nomina'
+  | 'aseo'
+  | 'mantenimiento'
+  | 'transporte'
+  | 'reparaciones'
+  | 'otros';
+
+export type MetodoPago = 'efectivo' | 'nequi' | 'tarjeta' | 'transferencia' | 'credito';
 
 export type EstadoGasto = 'pagado' | 'pendiente';
 
@@ -62,6 +139,16 @@ export interface Venta {
   acompanamiento?: string;
   con_ensalada?: boolean;
   con_salsas?: boolean;
+  categoria?: string;
+  precio_unitario?: number;
+  metodo_pago?: MetodoPago | string;
+  pago_estado?: 'pagado' | 'pendiente' | 'cancelado' | 'anulado';
+  cliente?: string;
+  notas?: string;
+  domiciliario?: string;
+  registrado_por?: string;
+  cobrado_por?: string;
+  estacion?: string;
   created_at?: string;
 }
 
@@ -90,6 +177,9 @@ export interface MovimientoInventario {
   motivo: string;
   referencia?: string;
   created_at?: string;
+  usuario?: string;
+  stock_anterior?: number | null;
+  stock_nuevo?: number | null;
 }
 
 export interface RpcResult {
@@ -122,6 +212,13 @@ export interface ReporteData {
   gastos_por_categoria?: Record<string, number>;
   ingredientes_bajo_minimo?: IngredienteBajoMinimo[];
   movimientos_inventario?: MovimientoReporte[];
+  gastos_pendientes?: number;
+  total_compras?: number;
+  ventas_por_categoria?: Record<string, number>;
+  ventas_por_modalidad?: Record<string, number>;
+  ventas_por_metodo?: Record<string, number>;
+  porciones_bajas?: { item: string; total: number; minimo: number }[];
+  nota_balance?: string;
 }
 
 export interface PlatoBajaRotacion {
@@ -149,6 +246,8 @@ export interface AuthSession {
   expiresAt: number; // timestamp in ms
   userEmail: string;
   isDemo?: boolean; // datos de ejemplo solo en este navegador; nunca toca la base
+  rol?: Rol; // cargo del empleado (validado también en el servidor)
+  nombre?: string;
 }
 
 export interface ChatMessage {

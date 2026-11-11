@@ -18,6 +18,11 @@ import {
   MetodoPago,
   EstadoGasto,
   TipoInsumo,
+  Producto,
+  ItemPorciones,
+  MovimientoPorciones,
+  CajaActual,
+  ConsumoProducto,
 } from '../types.ts';
 import {
   fetchIngredientes,
@@ -31,6 +36,22 @@ import {
   rpcRegistrarGasto,
   rpcAjustarInventario,
   rpcCrearIngrediente,
+  fetchProductos,
+  fetchPorciones,
+  fetchMovimientosPorciones,
+  rpcActualizarEstadoVenta,
+  rpcAsignarDomiciliario,
+  rpcMarcarGastoPagado,
+  rpcReportarFaltante,
+  rpcRegistrarCompra,
+  rpcRegistrarPorciones,
+  rpcAbrirCaja,
+  rpcCajaActual,
+  rpcCerrarCaja,
+  fetchConsumos,
+  rpcListarDomiciliarios,
+  rpcCerrarPeriodoPorciones,
+  rpcReportePeriodo,
 } from '../services/api.ts';
 import { useAuth } from './AuthContext.tsx';
 import { getBogotaTodayDateString, generateOperationId, capitalizeFirst } from '../utils/formatters.ts';
@@ -264,6 +285,39 @@ const INITIAL_MOVIMIENTOS: MovimientoInventario[] = [
   },
 ];
 
+// Catálogo de ejemplo (solo modo demo). En modo real el menú viene de la tabla productos.
+const DEMO_PRODUCTOS: Producto[] = [
+  { nombre: 'almuerzo corriente', categoria: 'almuerzos', precio: 13000, precio_llevar: 14000, precio_media: null, disponible: true, activo: true, estacion: 'cocina' },
+  { nombre: 'almuerzo seco', categoria: 'almuerzos', precio: 11000, precio_llevar: 12000, precio_media: null, disponible: true, activo: true, estacion: 'cocina' },
+  { nombre: 'corriente especial con mondongo', categoria: 'almuerzos', precio: 15000, precio_llevar: 16000, precio_media: null, disponible: true, activo: true, estacion: 'cocina' },
+  { nombre: 'corriente especial con ajiaco', categoria: 'almuerzos', precio: 15000, precio_llevar: 16000, precio_media: null, disponible: true, activo: true, estacion: 'cocina' },
+  { nombre: 'corriente especial con mote de queso', categoria: 'almuerzos', precio: 15000, precio_llevar: 16000, precio_media: null, disponible: true, activo: true, estacion: 'cocina' },
+  { nombre: 'asado de carne de res', categoria: 'asados', precio: 22000, precio_llevar: null, precio_media: 15000, disponible: true, activo: true, estacion: 'parrilla' },
+  { nombre: 'asado de lomo de cerdo', categoria: 'asados', precio: 20000, precio_llevar: null, precio_media: 14000, disponible: true, activo: true, estacion: 'parrilla' },
+  { nombre: 'asado de pechuga', categoria: 'asados', precio: 20000, precio_llevar: null, precio_media: 14000, disponible: true, activo: true, estacion: 'parrilla' },
+  { nombre: 'asado de chuleta', categoria: 'asados', precio: 20000, precio_llevar: null, precio_media: 14000, disponible: true, activo: true, estacion: 'parrilla' },
+  { nombre: 'gaseosa postobón personal', categoria: 'bebidas', precio: 3500, precio_llevar: null, precio_media: null, presentacion: 'personal', disponible: true, activo: true, estacion: 'bar' },
+  { nombre: 'coca-cola personal', categoria: 'bebidas', precio: 3500, precio_llevar: null, precio_media: null, presentacion: 'personal', disponible: true, activo: true, estacion: 'bar' },
+  { nombre: 'coca-cola 1,5 litros', categoria: 'bebidas', precio: 7000, precio_llevar: null, precio_media: null, presentacion: '1,5 litros', disponible: true, activo: true, estacion: 'bar' },
+  { nombre: 'agua pequeña', categoria: 'bebidas', precio: 1000, precio_llevar: null, precio_media: null, presentacion: 'pequeña', disponible: true, activo: true, estacion: 'bar' },
+  { nombre: 'agua grande', categoria: 'bebidas', precio: 2000, precio_llevar: null, precio_media: null, presentacion: 'grande', disponible: true, activo: true, estacion: 'bar' },
+];
+
+const DEMO_PORCIONES: ItemPorciones[] = [
+  'lomo de cerdo', 'carne de res', 'pechuga', 'costillas', 'chuleta', 'sobrebarriga', 'chinchurria',
+].map((item): ItemPorciones => ({ item, grupo: 'asado', existente: 0, entradas: 0, ventas: 0, total: 0, minimo: 0, activo: true }))
+  .concat(['ejecutivo de cerdo', 'ejecutivo de chuleta', 'ejecutivo de pechuga', 'ejecutivo de carne de res'].map((item): ItemPorciones => ({
+    item, grupo: 'ejecutivo', existente: 0, entradas: 0, ventas: 0, total: 0, minimo: 0, activo: true,
+  })));
+
+/** Precio que cobra la base para un producto (misma regla que registrar_venta en el servidor). */
+export function precioDeProducto(p: Producto | undefined, tipoPedido: TipoPedido, tamano?: 'media' | 'entera'): number | null {
+  if (!p) return null;
+  if (p.categoria === 'asados') return tamano === 'media' ? p.precio_media : p.precio;
+  if ((tipoPedido === 'para_llevar' || tipoPedido === 'domicilio') && p.precio_llevar != null) return p.precio_llevar;
+  return p.precio;
+}
+
 interface NotificationState extends RpcResult {
   id: number;
 }
@@ -285,21 +339,13 @@ interface DataContextType {
   loadAllData: () => Promise<void>;
   reloadVentasEInventario: () => Promise<void>;
   reloadGastos: () => Promise<void>;
-  executeSale: (payload: {
-    p_id: string;
-    p_plato: string;
-    p_cantidad: number;
-    p_precio_unitario?: number;
-    tamano_porcion?: 'media' | 'entera';
-    estado?: EstadoComanda;
-    tipo_pedido?: TipoPedido;
-    mesa?: string;
-    direccion_domicilio?: string;
-    telefono_contacto?: string;
-    p_acompanamiento?: string;
-    p_con_ensalada?: boolean;
-    p_con_salsas?: boolean;
-  }) => Promise<RpcResult>;
+  productos: Producto[];
+  porciones: ItemPorciones[];
+  movimientosPorciones: MovimientoPorciones[];
+  caja: CajaActual | null;
+  consumos: ConsumoProducto[];
+  domiciliarios: { email: string; nombre: string }[];
+  executeSale: (payload: SalePayload) => Promise<RpcResult>;
   executeExpense: (payload: {
     p_id: string;
     p_concepto: string;
@@ -312,13 +358,40 @@ interface DataContextType {
   }) => Promise<RpcResult>;
   executeAdjustStock: (payload: { p_ingrediente: string; p_delta: number; p_motivo: string }) => Promise<RpcResult>;
   executeCreateIngredient: (payload: { p_nombre: string; p_unidad: string; p_stock: number; p_minimo: number; tipo_insumo?: TipoInsumo }) => Promise<RpcResult>;
-  updateOrderStatus: (id_operacion: string, nuevoEstado: EstadoComanda) => void;
-  updateExpenseStatus: (id_operacion: string, nuevoEstado: EstadoGasto) => void;
-  registrar_venta: (payload: { p_id: string; p_plato: string; p_cantidad: number; estado?: EstadoComanda; tipo_pedido?: TipoPedido }) => Promise<RpcResult>;
+  updateOrderStatus: (id_operacion: string, nuevoEstado: EstadoComanda, extra?: { metodo_pago?: string; motivo?: string; devolver_inventario?: boolean }) => Promise<RpcResult>;
+  updateExpenseStatus: (id_operacion: string, nuevoEstado: EstadoGasto, metodo_pago?: string) => Promise<RpcResult>;
+  asignarDomiciliario: (id_operacion: string, email: string) => Promise<RpcResult>;
+  reportarFaltante: (payload: { p_item: string; p_tipo?: string; p_cantidad?: number; p_nota?: string }) => Promise<RpcResult>;
+  registrarCompra: (payload: { p_ingrediente: string; p_cantidad: number; p_valor: number; p_proveedor?: string; p_inventario?: 'general' | 'porciones'; p_metodo_pago?: string; p_estado_pago?: string }) => Promise<RpcResult>;
+  registrarPorciones: (payload: { p_item: string; p_tipo: 'existente' | 'entrada' | 'ajuste'; p_cantidad: number; p_motivo?: string }) => Promise<RpcResult>;
+  cerrarPeriodoPorciones: () => Promise<RpcResult>;
+  abrirCaja: (base: number) => Promise<RpcResult>;
+  cerrarCaja: (contado: number) => Promise<RpcResult>;
+  registrar_venta: (payload: SalePayload) => Promise<RpcResult>;
   registrar_gasto: (payload: { p_id: string; p_concepto: string; p_categoria: string; p_valor: number; periodo?: string; metodo_pago?: string; estado?: EstadoGasto }) => Promise<RpcResult>;
   consultar_inventario: () => { ingredientes: Ingrediente[]; bajo_minimo: { ingrediente: string; stock: number; stock_minimo: number; unidad: string }[]; total_items: number };
-  generar_reporte: (fecha?: string | null) => Promise<ReporteData>;
+  generar_reporte: (fecha?: string | null, hasta?: string | null) => Promise<ReporteData>;
   addConceptoGasto: (nombre: string, categoria: string) => void;
+}
+
+export interface SalePayload {
+  p_id: string;
+  p_plato: string;
+  p_cantidad: number;
+  /** Solo informativo / modo demo: el precio real lo decide la base. */
+  p_precio_unitario?: number;
+  tamano_porcion?: 'media' | 'entera';
+  estado?: EstadoComanda;
+  tipo_pedido?: TipoPedido;
+  mesa?: string;
+  direccion_domicilio?: string;
+  telefono_contacto?: string;
+  p_acompanamiento?: string;
+  p_con_ensalada?: boolean;
+  p_con_salsas?: boolean;
+  metodo_pago?: MetodoPago | string;
+  cliente?: string;
+  notas?: string;
 }
 
 const DEMO_PREFIX = 'restaurante_demo_';
@@ -338,7 +411,8 @@ function writeDemo(key: string, value: unknown) {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { getValidAccessToken, handleAuthError, isDemo, session } = useAuth();
+  const { getValidAccessToken, handleAuthError, isDemo, session, rol } = useAuth();
+  const esAdmin = rol === 'admin';
 
   // En modo real los datos vienen SOLO de Supabase. Los datos de ejemplo existen
   // únicamente en modo demo y se guardan aparte (prefijo restaurante_demo_).
@@ -348,6 +422,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [conceptosGasto, setConceptosGasto] = useState<ConceptoGasto[]>([]);
   const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [porciones, setPorciones] = useState<ItemPorciones[]>([]);
+  const [movimientosPorciones, setMovimientosPorciones] = useState<MovimientoPorciones[]>([]);
+  const [caja, setCaja] = useState<CajaActual | null>(null);
+  const [consumos, setConsumos] = useState<ConsumoProducto[]>([]);
+  const [domiciliarios, setDomiciliarios] = useState<{ email: string; nombre: string }[]>([]);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -369,7 +449,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setGastos(readDemo('gastos', INITIAL_GASTOS));
       setConceptosGasto(readDemo('conceptos', INITIAL_CONCEPTOS_GASTO));
       setMovimientos(readDemo('movimientos', INITIAL_MOVIMIENTOS));
+      setProductos(DEMO_PRODUCTOS);
+      setPorciones(readDemo('porciones', DEMO_PORCIONES));
+      setMovimientosPorciones(readDemo('movimientos_porciones', [] as MovimientoPorciones[]));
+      setCaja(readDemo<CajaActual | null>('caja', null));
     } else {
+      setProductos([]);
+      setConsumos([]);
+      setDomiciliarios([]);
+      setPorciones([]);
+      setMovimientosPorciones([]);
+      setCaja(null);
       setIngredientes([]);
       setRecetas([]);
       setVentas([]);
@@ -386,11 +476,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { if (isDemo) writeDemo('gastos', gastos); }, [isDemo, gastos]);
   useEffect(() => { if (isDemo) writeDemo('conceptos', conceptosGasto); }, [isDemo, conceptosGasto]);
   useEffect(() => { if (isDemo) writeDemo('movimientos', movimientos); }, [isDemo, movimientos]);
+  useEffect(() => { if (isDemo) writeDemo('porciones', porciones); }, [isDemo, porciones]);
+  useEffect(() => { if (isDemo) writeDemo('movimientos_porciones', movimientosPorciones); }, [isDemo, movimientosPorciones]);
+  useEffect(() => { if (isDemo) writeDemo('caja', caja); }, [isDemo, caja]);
 
   const reporteHoy: ReporteData = React.useMemo(() => {
     const today = getBogotaTodayDateString();
-    const ventasHoy = ventas.filter((v) => !v.fecha || v.fecha === today);
-    const gastosHoy = gastos.filter((g) => !g.fecha || g.fecha === today);
+    // Ingreso = venta cobrada (los pedidos pendientes o cancelados no cuentan). Gasto = gasto pagado.
+    const ventasHoy = ventas.filter((v) => (!v.fecha || v.fecha === today) && (v.pago_estado ?? 'pagado') === 'pagado' && v.estado !== 'cancelado');
+    const gastosHoy = gastos.filter((g) => (!g.fecha || g.fecha === today) && (g.estado ?? 'pagado') === 'pagado');
 
     const total_ventas = ventasHoy.reduce((acc, v) => acc + (v.total || 0), 0);
     const total_gastos = gastosHoy.reduce((acc, g) => acc + (g.valor || 0), 0);
@@ -447,7 +541,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /** Carga desde Supabase. En modo real los datos remotos reemplazan siempre a los locales (aunque vengan vacíos). */
   const fetchInto = useCallback(
-    async (parts: Array<'ing' | 'rec' | 'ven' | 'gas' | 'con' | 'mov'>) => {
+    async (parts: Array<'ing' | 'rec' | 'ven' | 'gas' | 'con' | 'mov' | 'pro' | 'por' | 'mpo' | 'caja' | 'cns' | 'dom'>) => {
       if (isDemo || !session) return;
       const token = await getValidAccessToken();
       if (!token) return;
@@ -459,8 +553,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         gas: async () => setGastos(await fetchGastos(50, opts)),
         con: async () => setConceptosGasto(await fetchConceptosGasto(opts)),
         mov: async () => setMovimientos(await fetchMovimientosInventario(50, opts)),
+        pro: async () => setProductos(await fetchProductos(opts)),
+        por: async () => setPorciones(await fetchPorciones(opts)),
+        mpo: async () => setMovimientosPorciones(await fetchMovimientosPorciones(50, opts)),
+        caja: async () => setCaja(esAdmin ? await rpcCajaActual(opts) : null),
+        cns: async () => setConsumos(await fetchConsumos(opts)),
+        dom: async () => setDomiciliarios(rol === 'admin' || rol === 'domicilios' ? await rpcListarDomiciliarios(opts) : []),
       };
-      const results = await Promise.allSettled(parts.map((p) => jobs[p]()));
+      // Gastos, conceptos y caja son información financiera: solo administración
+      const permitidas = parts.filter((p) => esAdmin || !['gas', 'con', 'caja'].includes(p));
+      const results = await Promise.allSettled(permitidas.map((p) => jobs[p]()));
       const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
       setLastError(
         failed.length
@@ -468,7 +570,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : null
       );
     },
-    [isDemo, session, getValidAccessToken, handleAuthError]
+    [isDemo, session, getValidAccessToken, handleAuthError, esAdmin, rol]
   );
 
   const loadAllData = useCallback(async () => {
@@ -476,15 +578,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setIsRefreshing(true);
     try {
-      await fetchInto(['ing', 'rec', 'ven', 'gas', 'con', 'mov']);
+      await fetchInto(['ing', 'rec', 'ven', 'gas', 'con', 'mov', 'pro', 'por', 'mpo', 'caja', 'cns', 'dom']);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
   }, [isDemo, session, fetchInto]);
 
-  const reloadVentasEInventario = useCallback(() => fetchInto(['ven', 'ing', 'mov']), [fetchInto]);
-  const reloadGastos = useCallback(() => fetchInto(['gas', 'con', 'ing']), [fetchInto]);
+  const reloadVentasEInventario = useCallback(() => fetchInto(['ven', 'ing', 'mov', 'por', 'mpo', 'caja']), [fetchInto]);
+  const reloadGastos = useCallback(() => fetchInto(['gas', 'con', 'ing', 'mov', 'por', 'mpo', 'caja']), [fetchInto]);
 
   /** Ejecuta una operación en Supabase y devuelve su resultado real (nunca un éxito simulado). */
   const runRemote = async (
@@ -502,29 +604,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const executeSale = async (payload: {
-    p_id: string;
-    p_plato: string;
-    p_cantidad: number;
-    p_precio_unitario?: number;
-    tamano_porcion?: 'media' | 'entera';
-    estado?: EstadoComanda;
-    tipo_pedido?: TipoPedido;
-    mesa?: string;
-    direccion_domicilio?: string;
-    telefono_contacto?: string;
-    p_acompanamiento?: string;
-    p_con_ensalada?: boolean;
-    p_con_salsas?: boolean;
-  }): Promise<RpcResult> => {
-    // Modo real: solo Supabase. Si falla, se informa el error y NO se guarda nada localmente.
-    if (!isDemo) return runRemote((o) => rpcRegistrarVenta(payload, o), reloadVentasEInventario);
+  const executeSale = async (payload: SalePayload): Promise<RpcResult> => {
+    // Modo real: solo Supabase (precio, permisos e inventario se resuelven en la base).
+    // Si falla, se informa el error y NO se guarda nada localmente.
+    if (!isDemo)
+      return runRemote(
+        (o) =>
+          rpcRegistrarVenta(
+            {
+              p_id: payload.p_id,
+              p_plato: payload.p_plato,
+              p_cantidad: payload.p_cantidad,
+              p_estado: payload.estado,
+              p_tipo_pedido: payload.tipo_pedido,
+              p_mesa: payload.mesa,
+              p_tamano_porcion: payload.tamano_porcion,
+              p_acompanamiento: payload.p_acompanamiento,
+              p_con_ensalada: payload.p_con_ensalada,
+              p_con_salsas: payload.p_con_salsas,
+              p_direccion: payload.direccion_domicilio,
+              p_telefono: payload.telefono_contacto,
+              p_metodo_pago: payload.metodo_pago,
+              p_cliente: payload.cliente,
+              p_notas: payload.notas,
+            },
+            o
+          ),
+        reloadVentasEInventario
+      );
 
     const platoLower = payload.p_plato.toLowerCase().trim();
     const matchingRecipes = recetas.filter((r) => r.plato.toLowerCase().trim() === platoLower);
     
     // Accurate pricing based on portion size and service modality
-    let unitPrice = payload.p_precio_unitario;
+    let unitPrice =
+      precioDeProducto(
+        productos.find((p) => p.nombre === platoLower),
+        payload.tipo_pedido || 'mesa',
+        payload.tamano_porcion
+      ) ?? payload.p_precio_unitario;
     if (!unitPrice || unitPrice <= 0) {
       const rec = matchingRecipes[0];
       if (payload.tamano_porcion === 'media' && rec?.precio_media) {
@@ -551,6 +669,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       total,
       tamano_porcion: payload.tamano_porcion,
       estado: payload.estado || 'pagado',
+      pago_estado: (payload.estado || 'pagado') === 'pagado' ? 'pagado' : 'pendiente',
+      metodo_pago: payload.metodo_pago || 'efectivo',
       tipo_pedido: payload.tipo_pedido || 'mesa',
       mesa: payload.mesa || (payload.tipo_pedido === 'mesa' ? 'Mesa 1' : undefined),
       direccion_domicilio: payload.direccion_domicilio,
@@ -756,7 +876,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addConceptoGasto(payload.p_concepto, payload.p_categoria);
 
     // Modo real: solo Supabase. Si falla, se informa el error y NO se guarda nada localmente.
-    if (!isDemo) return runRemote((o) => rpcRegistrarGasto(payload, o), reloadGastos);
+    if (!isDemo)
+      return runRemote(
+        (o) =>
+          rpcRegistrarGasto(
+            {
+              p_id: payload.p_id,
+              p_concepto: payload.p_concepto,
+              p_categoria: payload.p_categoria,
+              p_valor: payload.p_valor,
+              p_metodo_pago: payload.metodo_pago,
+              p_responsable: payload.responsable,
+              p_estado: payload.estado,
+              p_periodo: payload.periodo,
+            },
+            o
+          ),
+        reloadGastos
+      );
 
     const today = getBogotaTodayDateString();
     const newGasto: Gasto = {
@@ -780,17 +917,126 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  const updateOrderStatus = useCallback((id_operacion: string, nuevoEstado: EstadoComanda) => {
-    setVentas((prev) =>
-      prev.map((v) => (v.id_operacion === id_operacion ? { ...v, estado: nuevoEstado } : v))
-    );
-  }, []);
+  const updateOrderStatus = async (
+    id_operacion: string,
+    nuevoEstado: EstadoComanda,
+    extra?: { metodo_pago?: string; motivo?: string; devolver_inventario?: boolean }
+  ): Promise<RpcResult> => {
+    let res: RpcResult;
+    if (!isDemo) {
+      res = await runRemote(
+        (o) =>
+          rpcActualizarEstadoVenta(
+            {
+              p_id: id_operacion,
+              p_estado: nuevoEstado,
+              p_metodo_pago: extra?.metodo_pago,
+              p_motivo: extra?.motivo,
+              p_devolver_inventario: extra?.devolver_inventario,
+            },
+            o
+          ),
+        reloadVentasEInventario
+      );
+    } else {
+      setVentas((prev) =>
+        prev.map((v) =>
+          v.id_operacion === id_operacion
+            ? {
+                ...v,
+                estado: nuevoEstado === 'pagado' ? (v.estado === 'pagado' ? 'entregado' : v.estado) : nuevoEstado,
+                pago_estado: nuevoEstado === 'pagado' ? 'pagado' : nuevoEstado === 'cancelado' ? (v.pago_estado === 'pagado' ? 'anulado' : 'cancelado') : v.pago_estado,
+                metodo_pago: extra?.metodo_pago || v.metodo_pago,
+              }
+            : v
+        )
+      );
+      res = { ok: true, mensaje: `Pedido actualizado a "${nuevoEstado.replace('_', ' ')}".` };
+    }
+    showNotification(res);
+    return res;
+  };
 
-  const updateExpenseStatus = useCallback((id_operacion: string, nuevoEstado: EstadoGasto) => {
-    setGastos((prev) =>
-      prev.map((g) => (g.id_operacion === id_operacion ? { ...g, estado: nuevoEstado } : g))
+  const updateExpenseStatus = async (id_operacion: string, nuevoEstado: EstadoGasto, metodo_pago?: string): Promise<RpcResult> => {
+    let res: RpcResult;
+    if (nuevoEstado !== 'pagado') {
+      res = { ok: false, mensaje: 'Un gasto pagado no puede volver a pendiente.' };
+    } else if (!isDemo) {
+      res = await runRemote((o) => rpcMarcarGastoPagado({ p_id: id_operacion, p_metodo_pago: metodo_pago }, o), reloadGastos);
+    } else {
+      setGastos((prev) => prev.map((g) => (g.id_operacion === id_operacion ? { ...g, estado: nuevoEstado } : g)));
+      res = { ok: true, mensaje: 'Gasto marcado como pagado.' };
+    }
+    showNotification(res);
+    return res;
+  };
+
+  const demoNoDisponible = (): RpcResult => ({
+    ok: false,
+    mensaje: 'Esta operación solo funciona con la base de datos real (inicia sesión con tu cuenta).',
+  });
+
+  const asignarDomiciliario = async (id_operacion: string, email: string) =>
+    isDemo
+      ? demoNoDisponible()
+      : runRemote((o) => rpcAsignarDomiciliario({ p_id: id_operacion, p_domiciliario: email }, o), reloadVentasEInventario);
+
+  const reportarFaltante = async (payload: { p_item: string; p_tipo?: string; p_cantidad?: number; p_nota?: string }) =>
+    isDemo
+      ? { ok: true, mensaje: 'Faltante reportado a administración (modo demo).' }
+      : runRemote((o) => rpcReportarFaltante(payload, o), async () => {});
+
+  const registrarCompra = async (payload: {
+    p_ingrediente: string;
+    p_cantidad: number;
+    p_valor: number;
+    p_proveedor?: string;
+    p_inventario?: 'general' | 'porciones';
+    p_metodo_pago?: string;
+    p_estado_pago?: string;
+  }) =>
+    isDemo
+      ? demoNoDisponible()
+      : runRemote((o) => rpcRegistrarCompra({ ...payload, p_id: generateOperationId('C') }, o), async () => {
+          await reloadGastos();
+        });
+
+  const registrarPorciones = async (payload: { p_item: string; p_tipo: 'existente' | 'entrada' | 'ajuste'; p_cantidad: number; p_motivo?: string }): Promise<RpcResult> => {
+    if (!isDemo) return runRemote((o) => rpcRegistrarPorciones(payload, o), reloadVentasEInventario);
+    let total = 0;
+    setPorciones((prev) =>
+      prev.map((p) => {
+        if (p.item !== payload.p_item) return p;
+        const next = { ...p };
+        if (payload.p_tipo === 'existente') next.existente = payload.p_cantidad;
+        if (payload.p_tipo === 'entrada') next.entradas += payload.p_cantidad;
+        if (payload.p_tipo === 'ajuste') next.existente += payload.p_cantidad;
+        next.total = next.existente + next.entradas - next.ventas;
+        total = next.total;
+        return next;
+      })
     );
-  }, []);
+    return { ok: true, mensaje: `${payload.p_item}: porciones actualizadas${total ? ` (${total})` : ''}.` };
+  };
+
+  const cerrarPeriodoPorciones = async (): Promise<RpcResult> => {
+    if (!isDemo) return runRemote((o) => rpcCerrarPeriodoPorciones(o), reloadVentasEInventario);
+    setPorciones((prev) => prev.map((p) => ({ ...p, existente: p.total, entradas: 0, ventas: 0 })));
+    return { ok: true, mensaje: 'Periodo de porciones cerrado (modo demo).' };
+  };
+
+  const abrirCaja = async (base: number): Promise<RpcResult> => {
+    if (!isDemo) return runRemote((o) => rpcAbrirCaja({ p_base: base }, o), reloadVentasEInventario);
+    setCaja({ id: 1, base, abierta_por: 'demo', abierta_en: new Date().toISOString(), numero_ventas: 0, ventas_efectivo: 0, ventas_otros: 0, ventas_por_metodo: {}, gastos_efectivo: 0, esperado: base });
+    return { ok: true, mensaje: 'Caja abierta (modo demo).' };
+  };
+
+  const cerrarCaja = async (contado: number): Promise<RpcResult> => {
+    if (!caja) return { ok: false, mensaje: 'No hay una caja abierta.' };
+    if (!isDemo) return runRemote((o) => rpcCerrarCaja({ p_caja_id: caja.id, p_contado: contado }, o), reloadVentasEInventario);
+    setCaja(null);
+    return { ok: true, mensaje: `Caja cerrada (modo demo). Diferencia: ${contado - caja.esperado}.` };
+  };
 
   const executeAdjustStock = async (payload: {
     p_ingrediente: string;
@@ -830,15 +1076,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     p_unidad: string;
     p_stock: number;
     p_minimo: number;
+    tipo_insumo?: TipoInsumo;
   }): Promise<RpcResult> => {
     // Modo real: solo Supabase. Si falla, se informa el error y NO se guarda nada localmente.
-    if (!isDemo) return runRemote((o) => rpcCrearIngrediente(payload, o), reloadVentasEInventario);
+    if (!isDemo)
+      return runRemote(
+        (o) =>
+          rpcCrearIngrediente(
+            { p_nombre: payload.p_nombre, p_unidad: payload.p_unidad, p_stock: payload.p_stock, p_minimo: payload.p_minimo, p_categoria: payload.tipo_insumo },
+            o
+          ),
+        reloadVentasEInventario
+      );
 
     const newIng: Ingrediente = {
       ingrediente: payload.p_nombre.toLowerCase(),
       unidad: payload.p_unidad,
       stock: payload.p_stock,
       stock_minimo: payload.p_minimo,
+      tipo_insumo: payload.tipo_insumo,
     };
 
     setIngredientes((prev) => [newIng, ...prev.filter((i) => i.ingrediente !== newIng.ingrediente)]);
@@ -865,17 +1121,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [ingredientes]);
 
-  const generar_reporte = useCallback(async (fecha?: string | null) => {
+  const generar_reporte = useCallback(async (fecha?: string | null, hasta?: string | null) => {
     if (isDemo) return reporteHoy;
     const token = await getValidAccessToken();
+    const opts = { token, onAuthError: handleAuthError };
     try {
-      const res = await rpcReporte(fecha || null, { token, onAuthError: handleAuthError });
+      const desde = fecha || getBogotaTodayDateString();
+      const res = hasta ? await rpcReportePeriodo(desde, hasta, opts) : await rpcReporte(fecha || null, opts);
       if (res && typeof res.total_ventas === 'number') {
-        return res;
+        return { ...res, total_ventas: Number(res.total_ventas), total_gastos: Number(res.total_gastos), balance: Number(res.balance) };
       }
-    } catch {}
+    } catch (err) {
+      showNotification({ ok: false, mensaje: err instanceof Error ? err.message : 'No se pudo generar el reporte.' });
+    }
     return reporteHoy;
-  }, [isDemo, getValidAccessToken, handleAuthError, reporteHoy]);
+  }, [isDemo, getValidAccessToken, handleAuthError, reporteHoy, showNotification]);
 
   useEffect(() => {
     loadAllData();
@@ -900,6 +1160,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadAllData,
         reloadVentasEInventario,
         reloadGastos,
+        productos,
+        porciones,
+        movimientosPorciones,
+        caja,
+        consumos,
+        domiciliarios,
+        asignarDomiciliario,
+        reportarFaltante,
+        registrarCompra,
+        registrarPorciones,
+        cerrarPeriodoPorciones,
+        abrirCaja,
+        cerrarCaja,
         executeSale,
         executeExpense,
         executeAdjustStock,
