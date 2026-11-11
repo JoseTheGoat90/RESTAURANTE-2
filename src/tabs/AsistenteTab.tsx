@@ -73,7 +73,7 @@ export const AsistenteTab: React.FC = () => {
   - A Domicilio: ${domicilios} pedidos
   - Para Llevar: ${paraLlevar} pedidos
 • Gastos Totales: ${formatCOP(reporteHoy.total_gastos)}
-• Balance Neto: ${formatCOP(reporteHoy.balance)} (${reporteHoy.balance >= 0 ? 'Margen positivo favorable' : 'Balance negativo en este turno'}).`;
+• Balance (ingresos − gastos): ${formatCOP(reporteHoy.balance)} (${reporteHoy.balance >= 0 ? 'Margen positivo favorable' : 'Balance negativo en este turno'}).`;
     }
 
     // 2. Inventario, Carnes y Desechables

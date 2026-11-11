@@ -5,7 +5,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { useData } from '../context/DataContext.tsx';
+import { useData, precioDeProducto } from '../context/DataContext.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
 import {
   formatCOP,
   formatBogotaDateTime,
@@ -44,7 +45,7 @@ import {
   Coffee,
   Info,
 } from 'lucide-react';
-import { TipoPedido, EstadoComanda, TamanoPorcion } from '../types.ts';
+import { TipoPedido, EstadoComanda, TamanoPorcion, Producto, MetodoPago } from '../types.ts';
 
 type CategoriaPlato = 'todos' | 'asados' | 'almuerzos_sopas' | 'bebidas';
 
@@ -65,6 +66,7 @@ export interface ItemMenuOficial {
   cantidadPrincipal: number;
   unidadPrincipal: string;
   acompSugerido?: string;
+  disponible?: boolean;
 }
 
 export const MENU_OFICIAL_DOCUMENTO: ItemMenuOficial[] = [
@@ -83,7 +85,7 @@ export const MENU_OFICIAL_DOCUMENTO: ItemMenuOficial[] = [
     acompSugerido: 'patacon',
   },
   {
-    plato: 'lomo de cerdo',
+    plato: 'asado de lomo de cerdo',
     nombreVisible: 'Asado de Lomo de Cerdo',
     categoria: 'asados',
     descripcion: 'Corte magro y tierno de lomo de cerdo asado a la plancha.',
@@ -96,7 +98,7 @@ export const MENU_OFICIAL_DOCUMENTO: ItemMenuOficial[] = [
     acompSugerido: 'patacon',
   },
   {
-    plato: 'pechuga a la plancha',
+    plato: 'asado de pechuga',
     nombreVisible: 'Pechuga de Pollo a la Plancha',
     categoria: 'asados',
     descripcion: 'Filete de pechuga marinada en finas hierbas y asada a la plancha.',
@@ -109,7 +111,7 @@ export const MENU_OFICIAL_DOCUMENTO: ItemMenuOficial[] = [
     acompSugerido: 'papa',
   },
   {
-    plato: 'chuleta de cerdo',
+    plato: 'asado de chuleta',
     nombreVisible: 'Chuleta de Cerdo',
     categoria: 'asados',
     descripcion: 'Chuleta de cerdo seleccionada y dorada a fuego medio.',
@@ -150,74 +152,46 @@ export const MENU_OFICIAL_DOCUMENTO: ItemMenuOficial[] = [
     acompSugerido: 'patacon',
   },
   {
-    plato: 'sopa de mondongo',
-    nombreVisible: 'Sopa de Mondongo Tradicional',
+    plato: 'corriente especial con mondongo',
+    nombreVisible: 'Corriente Especial con Mondongo',
     categoria: 'almuerzos_sopas',
-    descripcion: 'Sopa tradicional de mondongo con verduras, aliños criollos y vituallas.',
+    descripcion: 'Almuerzo corriente acompañado de sopa de mondongo.',
     esSopaOAlmuerzo: true,
     precioMesa: 15000,
     precioLlevar: 16000,
-    ingredientePrincipal: 'carne salada',
-    cantidadPrincipal: 0.4,
-    unidadPrincipal: 'lb',
-    acompSugerido: 'bollo',
+    ingredientePrincipal: '',
+    cantidadPrincipal: 0,
+    unidadPrincipal: '',
+    acompSugerido: 'ninguno',
   },
   {
-    plato: 'ajiaco',
-    nombreVisible: 'Ajiaco Santafereño',
+    plato: 'corriente especial con ajiaco',
+    nombreVisible: 'Corriente Especial con Ajiaco',
     categoria: 'almuerzos_sopas',
-    descripcion: 'Sopa espesa tradicional con pechuga de pollo desmechada, papa y maíz.',
+    descripcion: 'Almuerzo corriente acompañado de sopa de ajiaco.',
     esSopaOAlmuerzo: true,
     precioMesa: 15000,
     precioLlevar: 16000,
-    ingredientePrincipal: 'pollo (para sopas y guisar)',
-    cantidadPrincipal: 0.4,
-    unidadPrincipal: 'lb',
-    acompSugerido: 'bollo',
+    ingredientePrincipal: '',
+    cantidadPrincipal: 0,
+    unidadPrincipal: '',
+    acompSugerido: 'ninguno',
   },
   {
-    plato: 'mote de queso',
-    nombreVisible: 'Mote de Queso Costeño',
+    plato: 'corriente especial con mote de queso',
+    nombreVisible: 'Corriente Especial con Mote de queso',
     categoria: 'almuerzos_sopas',
-    descripcion: 'Sopa cremosa con ñame, queso costeño fresco, hogao y toque de ajo.',
+    descripcion: 'Almuerzo corriente acompañado de sopa de mote de queso.',
     esSopaOAlmuerzo: true,
     precioMesa: 15000,
     precioLlevar: 16000,
-    ingredientePrincipal: 'queso',
-    cantidadPrincipal: 0.3,
-    unidadPrincipal: 'lb',
-    acompSugerido: 'bollo',
+    ingredientePrincipal: '',
+    cantidadPrincipal: 0,
+    unidadPrincipal: '',
+    acompSugerido: 'ninguno',
   },
   {
-    plato: 'sopa de costilla de res',
-    nombreVisible: 'Sopa de Costilla de Res',
-    categoria: 'almuerzos_sopas',
-    descripcion: 'Sopa casera con costilla de res tierna, papa, yuca y vituallas tradicionales.',
-    esSopaOAlmuerzo: true,
-    precioMesa: 15000,
-    precioLlevar: 16000,
-    ingredientePrincipal: 'costillas de res',
-    cantidadPrincipal: 0.5,
-    unidadPrincipal: 'lb',
-    acompSugerido: 'bollo',
-  },
-  {
-    plato: 'sopa de jarrete tradicional',
-    nombreVisible: 'Sopa de Jarrete Tradicional',
-    categoria: 'almuerzos_sopas',
-    descripcion: 'Sopa sustanciosa con jarrete grueso de res, papa y vituallas campesinas.',
-    esSopaOAlmuerzo: true,
-    precioMesa: 15000,
-    precioLlevar: 16000,
-    ingredientePrincipal: 'jarrete grueso',
-    cantidadPrincipal: 0.5,
-    unidadPrincipal: 'lb',
-    acompSugerido: 'bollo',
-  },
-
-  // 3. Bebidas (Precios fijos exactos del documento)
-  {
-    plato: 'gaseosa postobon personal',
+    plato: 'gaseosa postobón personal',
     nombreVisible: 'Gaseosa Postobón Personal',
     categoria: 'bebidas',
     descripcion: 'Bebida gaseosa personal presentación individual.',
@@ -228,7 +202,7 @@ export const MENU_OFICIAL_DOCUMENTO: ItemMenuOficial[] = [
     unidadPrincipal: 'unidad',
   },
   {
-    plato: 'gaseosa coca-cola personal',
+    plato: 'coca-cola personal',
     nombreVisible: 'Gaseosa Coca-Cola Personal',
     categoria: 'bebidas',
     descripcion: 'Bebida gaseosa Coca-Cola personal presentación individual.',
@@ -239,7 +213,7 @@ export const MENU_OFICIAL_DOCUMENTO: ItemMenuOficial[] = [
     unidadPrincipal: 'unidad',
   },
   {
-    plato: 'coca-cola 1.5 litros',
+    plato: 'coca-cola 1,5 litros',
     nombreVisible: 'Coca-Cola 1,5 Litros',
     categoria: 'bebidas',
     descripcion: 'Bebida gaseosa Coca-Cola presentación familiar 1,5 litros.',
@@ -250,7 +224,7 @@ export const MENU_OFICIAL_DOCUMENTO: ItemMenuOficial[] = [
     unidadPrincipal: 'unidad',
   },
   {
-    plato: 'agua presentacion 1',
+    plato: 'agua pequeña',
     nombreVisible: 'Agua Presentación 1',
     categoria: 'bebidas',
     descripcion: 'Agua embotellada presentación estándar económica.',
@@ -261,7 +235,7 @@ export const MENU_OFICIAL_DOCUMENTO: ItemMenuOficial[] = [
     unidadPrincipal: 'unidad',
   },
   {
-    plato: 'agua presentacion 2',
+    plato: 'agua grande',
     nombreVisible: 'Agua Presentación 2',
     categoria: 'bebidas',
     descripcion: 'Agua embotellada presentación premium o mayor tamaño.',
@@ -281,6 +255,46 @@ interface AcompanamientoOption {
   unidad: string;
 }
 
+const CATEGORIA_MENU: Record<string, CategoriaPlato> = { asados: 'asados', almuerzos: 'almuerzos_sopas', bebidas: 'bebidas' };
+
+/** Convierte el catálogo de la base (tabla productos) al formato de las tarjetas del menú. */
+function menuDesdeProductos(productos: Producto[]): ItemMenuOficial[] {
+  return productos
+    .filter((p) => p.activo)
+    .map((p) => {
+      const base = MENU_OFICIAL_DOCUMENTO.find((m) => m.plato === p.nombre);
+      const categoria = CATEGORIA_MENU[p.categoria] ?? 'almuerzos_sopas';
+      return {
+        plato: p.nombre,
+        nombreVisible: base?.nombreVisible ?? capitalizeFirst(p.nombre),
+        categoria,
+        descripcion:
+          base?.descripcion ??
+          (p.presentacion ? `Presentación: ${p.presentacion}.` : categoria === 'asados' ? 'Asado: porción media o entera.' : ''),
+        esAsado: categoria === 'asados',
+        esSopaOAlmuerzo: categoria === 'almuerzos_sopas',
+        esBebida: categoria === 'bebidas',
+        precioMedia: p.precio_media ?? undefined,
+        precioEntera: categoria === 'asados' ? p.precio ?? undefined : undefined,
+        precioMesa: categoria === 'almuerzos_sopas' ? p.precio ?? undefined : undefined,
+        precioLlevar: p.precio_llevar ?? undefined,
+        precioFijo: categoria === 'bebidas' ? p.precio ?? undefined : undefined,
+        ingredientePrincipal: '',
+        cantidadPrincipal: 0,
+        unidadPrincipal: '',
+        acompSugerido: base?.acompSugerido,
+        disponible: p.disponible,
+      };
+    });
+}
+
+const METODOS_PAGO: { id: MetodoPago; label: string }[] = [
+  { id: 'efectivo', label: 'Efectivo' },
+  { id: 'nequi', label: 'Nequi' },
+  { id: 'tarjeta', label: 'Tarjeta' },
+  { id: 'transferencia', label: 'Transferencia' },
+];
+
 const ACOMPANAMIENTOS_PRESET: AcompanamientoOption[] = [
   { id: 'patacon', label: 'Patacón frito (2 un.)', insumo: 'patacón', cantidad: 2, unidad: 'unidad' },
   { id: 'bollo', label: 'Bollo tradicional (1 un.)', insumo: 'bollo', cantidad: 1, unidad: 'unidad' },
@@ -290,7 +304,25 @@ const ACOMPANAMIENTOS_PRESET: AcompanamientoOption[] = [
 ];
 
 export const VenderTab: React.FC = () => {
-  const { recetas, ventas, ingredientes, executeSale, updateOrderStatus, showNotification } = useData();
+  const {
+    ventas,
+    ingredientes,
+    productos,
+    porciones,
+    consumos,
+    domiciliarios,
+    executeSale,
+    updateOrderStatus,
+    asignarDomiciliario,
+    showNotification,
+  } = useData();
+  const { rol, puede } = useAuth();
+  const puedeVender = puede('vender');
+  const puedeCobrar = puede('cobrar');
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
+
+  // Menú: el catálogo real de la base. Si aún no hay productos cargados se usa el menú del documento.
+  const menu = useMemo(() => (productos.length ? menuDesdeProductos(productos) : MENU_OFICIAL_DOCUMENTO), [productos]);
 
   const [filtroCategoria, setFiltroCategoria] = useState<CategoriaPlato>('todos');
   const [selectedPlatoId, setSelectedPlatoId] = useState<string>('asado de carne de res');
@@ -303,40 +335,32 @@ export const VenderTab: React.FC = () => {
   const [mesa, setMesa] = useState<string>('Mesa 1');
   const [direccion, setDireccion] = useState<string>('');
   const [telefono, setTelefono] = useState<string>('');
+  const [cliente, setCliente] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Selected item from canonical catalog
   const currentItem = useMemo(() => {
-    return MENU_OFICIAL_DOCUMENTO.find((m) => m.plato === selectedPlatoId) || MENU_OFICIAL_DOCUMENTO[0];
-  }, [selectedPlatoId]);
+    return menu.find((m) => m.plato === selectedPlatoId) || menu[0];
+  }, [selectedPlatoId, menu]);
 
   // Calculate unit price dynamically based on modality and portion
   const unitPrice = useMemo(() => {
     if (!currentItem) return 0;
-    if (currentItem.esBebida) {
-      return currentItem.precioFijo || 3500;
-    }
-    if (currentItem.esAsado) {
-      return tamanoPorcion === 'media'
-        ? (currentItem.precioMedia || 14000)
-        : (currentItem.precioEntera || 20000);
-    }
-    if (currentItem.esSopaOAlmuerzo) {
-      return (tipoPedido === 'para_llevar' || tipoPedido === 'domicilio')
-        ? (currentItem.precioLlevar || 16000)
-        : (currentItem.precioMesa || 15000);
-    }
-    return 15000;
-  }, [currentItem, tamanoPorcion, tipoPedido]);
+    const prod = productos.find((p) => p.nombre === currentItem.plato);
+    if (prod) return precioDeProducto(prod, tipoPedido, currentItem.esAsado ? tamanoPorcion : undefined) ?? 0;
+    if (currentItem.esBebida) return currentItem.precioFijo || 0;
+    if (currentItem.esAsado) return (tamanoPorcion === 'media' ? currentItem.precioMedia : currentItem.precioEntera) || 0;
+    return (tipoPedido === 'para_llevar' || tipoPedido === 'domicilio' ? currentItem.precioLlevar : currentItem.precioMesa) || 0;
+  }, [currentItem, tamanoPorcion, tipoPedido, productos]);
 
   const totalPrice = unitPrice * cantidad;
 
   // Filter items by category
   const itemsVisibles = useMemo(() => {
-    if (filtroCategoria === 'todos') return MENU_OFICIAL_DOCUMENTO;
-    return MENU_OFICIAL_DOCUMENTO.filter((m) => m.categoria === filtroCategoria);
-  }, [filtroCategoria]);
+    if (filtroCategoria === 'todos') return menu;
+    return menu.filter((m) => m.categoria === filtroCategoria);
+  }, [filtroCategoria, menu]);
 
   // When selected item changes, set smart accompaniment and complements
   useEffect(() => {
@@ -350,166 +374,49 @@ export const VenderTab: React.FC = () => {
   }, [currentItem]);
 
   // Real-time inventory deduction calculation
+  // Vista previa de lo que la base descontará: los consumos configurados por administración
+  // para este producto, su presentación y su modalidad (no se inventan cantidades).
   const recipeImpact = useMemo(() => {
     if (!currentItem) return [];
-    const items: Array<{
-      ingrediente: string;
-      tipo: string;
-      cantidadTotal: number;
-      stockActual: number;
-      stockMinimo: number;
-      unidad: string;
-      stockRestante: number;
-      isCritical: boolean;
-      isDeficit: boolean;
-    }> = [];
-
-    // 1. Meat / Core ingredient
-    if (!currentItem.esBebida) {
-      const neededFactor = currentItem.esAsado && tamanoPorcion === 'media' ? 0.6 : 1.0;
-      const neededMain = Number((currentItem.cantidadPrincipal * neededFactor * cantidad).toFixed(2));
-      const ing = ingredientes.find((i) => i.ingrediente.toLowerCase().includes(currentItem.ingredientePrincipal.toLowerCase()));
-      const curStock = ing ? ing.stock : 0;
-      const minStock = ing ? ing.stock_minimo : 0;
-      const rem = curStock - neededMain;
-
-      items.push({
-        ingrediente: currentItem.ingredientePrincipal,
-        tipo: 'Proteína Principal',
-        cantidadTotal: neededMain,
-        stockActual: curStock,
-        stockMinimo: minStock,
-        unidad: currentItem.unidadPrincipal,
-        stockRestante: rem,
-        isCritical: rem <= minStock,
-        isDeficit: rem < 0,
+    const variantes = [null, currentItem.esAsado ? tamanoPorcion : null, tipoPedido];
+    return consumos
+      .filter((c) => c.producto === currentItem.plato && variantes.includes(c.variante))
+      .map((c) => {
+        const cantidadTotal = Number((c.cantidad * cantidad).toFixed(3));
+        if (c.tipo === 'porcion') {
+          const p = porciones.find((x) => x.item === c.item);
+          const stockActual = p ? p.total : 0;
+          const stockMinimo = p ? p.minimo : 0;
+          const stockRestante = stockActual - cantidadTotal;
+          return {
+            ingrediente: c.item,
+            tipo: 'Inventario de porciones',
+            cantidadTotal,
+            stockActual,
+            stockMinimo,
+            unidad: 'porción',
+            stockRestante,
+            isCritical: stockRestante <= stockMinimo,
+            isDeficit: stockRestante < 0,
+          };
+        }
+        const ing = ingredientes.find((i) => i.ingrediente === c.item);
+        const stockActual = ing ? ing.stock : 0;
+        const stockMinimo = ing ? ing.stock_minimo : 0;
+        const stockRestante = stockActual - cantidadTotal;
+        return {
+          ingrediente: c.item,
+          tipo: c.variante ? `Por ${c.variante.replace('_', ' ')}` : 'Receta',
+          cantidadTotal,
+          stockActual,
+          stockMinimo,
+          unidad: ing?.unidad || '',
+          stockRestante,
+          isCritical: stockRestante <= stockMinimo,
+          isDeficit: stockRestante < 0,
+        };
       });
-    }
-
-    // 2. Accompaniment if selected (for food items)
-    if (!currentItem.esBebida && selectedAcomp && selectedAcomp !== 'ninguno') {
-      const preset = ACOMPANAMIENTOS_PRESET.find((a) => a.id === selectedAcomp);
-      if (preset && preset.insumo) {
-        const ing = ingredientes.find((i) => i.ingrediente.toLowerCase().includes(preset.insumo));
-        const neededAcomp = Number((preset.cantidad * cantidad).toFixed(2));
-        const curStock = ing ? ing.stock : 0;
-        const minStock = ing ? ing.stock_minimo : 0;
-        const rem = curStock - neededAcomp;
-
-        items.push({
-          ingrediente: preset.label,
-          tipo: 'Acompañamiento',
-          cantidadTotal: neededAcomp,
-          stockActual: curStock,
-          stockMinimo: minStock,
-          unidad: preset.unidad,
-          stockRestante: rem,
-          isCritical: rem <= minStock,
-          isDeficit: rem < 0,
-        });
-      }
-    }
-
-    // 3. Salad if checked
-    if (!currentItem.esBebida && conEnsalada) {
-      const ing = ingredientes.find((i) => i.ingrediente.toLowerCase().includes('ensalada'));
-      const needed = 1 * cantidad;
-      const curStock = ing ? ing.stock : 0;
-      const minStock = ing ? ing.stock_minimo : 0;
-      const rem = curStock - needed;
-
-      items.push({
-        ingrediente: 'Ensalada fresca',
-        tipo: 'Complemento',
-        cantidadTotal: needed,
-        stockActual: curStock,
-        stockMinimo: minStock,
-        unidad: 'porción',
-        stockRestante: rem,
-        isCritical: rem <= minStock,
-        isDeficit: rem < 0,
-      });
-    }
-
-    // 4. House sauce if checked
-    if (!currentItem.esBebida && conSalsas) {
-      const ing = ingredientes.find((i) => i.ingrediente.toLowerCase().includes('salsas'));
-      const needed = 1 * cantidad;
-      const curStock = ing ? ing.stock : 0;
-      const minStock = ing ? ing.stock_minimo : 0;
-      const rem = curStock - needed;
-
-      items.push({
-        ingrediente: 'Salsas de la casa',
-        tipo: 'Complemento',
-        cantidadTotal: needed,
-        stockActual: curStock,
-        stockMinimo: minStock,
-        unidad: 'porción',
-        stockRestante: rem,
-        isCritical: rem <= minStock,
-        isDeficit: rem < 0,
-      });
-    }
-
-    // 5. Disposables for take out or delivery
-    if (tipoPedido === 'domicilio' || tipoPedido === 'para_llevar') {
-      const isSopa = currentItem.categoria === 'almuerzos_sopas' && currentItem.plato.includes('sopa');
-      const empaqueIng = ingredientes.find((i) => i.ingrediente.toLowerCase().includes(isSopa ? 'térmico para sopa' : 'para secos'));
-      const empStock = empaqueIng ? empaqueIng.stock : 0;
-      const empMin = empaqueIng ? empaqueIng.stock_minimo : 0;
-      const empRem = empStock - cantidad;
-
-      items.push({
-        ingrediente: isSopa ? 'Empaque térmico para sopa' : 'Empaque para secos',
-        tipo: 'Empaque desechable',
-        cantidadTotal: cantidad,
-        stockActual: empStock,
-        stockMinimo: empMin,
-        unidad: 'unidad',
-        stockRestante: empRem,
-        isCritical: empRem <= empMin,
-        isDeficit: empRem < 0,
-      });
-
-      const cubiertosIng = ingredientes.find((i) => i.ingrediente.toLowerCase().includes('cubiertos'));
-      const cubStock = cubiertosIng ? cubiertosIng.stock : 0;
-      const cubMin = cubiertosIng ? cubiertosIng.stock_minimo : 0;
-      const cubRem = cubStock - cantidad;
-
-      items.push({
-        ingrediente: 'Cubiertos desechables',
-        tipo: 'Desechable',
-        cantidadTotal: cantidad,
-        stockActual: cubStock,
-        stockMinimo: cubMin,
-        unidad: 'unidad',
-        stockRestante: cubRem,
-        isCritical: cubRem <= cubMin,
-        isDeficit: cubRem < 0,
-      });
-
-      if (tipoPedido === 'domicilio') {
-        const bolsaIng = ingredientes.find((i) => i.ingrediente.toLowerCase().includes('bolsa'));
-        const bolsaStock = bolsaIng ? bolsaIng.stock : 0;
-        const bolsaMin = bolsaIng ? bolsaIng.stock_minimo : 0;
-
-        items.push({
-          ingrediente: 'Bolsa de domicilio',
-          tipo: 'Empaque domicilio',
-          cantidadTotal: 1,
-          stockActual: bolsaStock,
-          stockMinimo: bolsaMin,
-          unidad: 'unidad',
-          stockRestante: bolsaStock - 1,
-          isCritical: bolsaStock - 1 <= bolsaMin,
-          isDeficit: bolsaStock - 1 < 0,
-        });
-      }
-    }
-
-    return items;
-  }, [currentItem, tamanoPorcion, cantidad, selectedAcomp, conEnsalada, conSalsas, tipoPedido, ingredientes]);
+  }, [currentItem, tamanoPorcion, cantidad, tipoPedido, ingredientes, porciones, consumos]);
 
   const hasInventoryDeficit = useMemo(() => {
     return recipeImpact.some((item) => item.isDeficit);
@@ -550,9 +457,11 @@ export const VenderTab: React.FC = () => {
         mesa: tipoPedido === 'mesa' ? mesa : undefined,
         direccion_domicilio: tipoPedido === 'domicilio' ? direccion : undefined,
         telefono_contacto: tipoPedido === 'domicilio' ? telefono : undefined,
+        cliente: tipoPedido === 'domicilio' ? cliente.trim() || undefined : undefined,
         p_acompanamiento: acompLabel,
         p_con_ensalada: !currentItem.esBebida ? conEnsalada : false,
         p_con_salsas: !currentItem.esBebida ? conSalsas : false,
+        metodo_pago: metodoPago,
       });
 
       showNotification(result);
@@ -562,6 +471,7 @@ export const VenderTab: React.FC = () => {
         if (tipoPedido === 'domicilio') {
           setDireccion('');
           setTelefono('');
+          setCliente('');
         }
       }
     } catch (err: unknown) {
@@ -572,9 +482,23 @@ export const VenderTab: React.FC = () => {
     }
   };
 
+  // Cada cargo ve las comandas que le corresponden (la base también lo filtra)
   const ultimasVentas = useMemo(() => {
-    return ventas.slice(0, 15);
-  }, [ventas]);
+    let lista = ventas;
+    if (rol === 'cocina') lista = lista.filter((v) => (v.estacion ?? 'cocina') === 'cocina');
+    if (rol === 'parrilla') lista = lista.filter((v) => v.estacion === 'parrilla');
+    if (rol === 'domicilios') lista = lista.filter((v) => v.tipo_pedido === 'domicilio');
+    if (rol === 'cocina' || rol === 'parrilla' || rol === 'domiciliario')
+      lista = lista.filter((v) => v.estado !== 'entregado' && v.estado !== 'cancelado' && v.estado !== 'pagado');
+    return lista.slice(0, rol === 'admin' ? 15 : 40);
+  }, [ventas, rol]);
+
+  const handleCancelar = (id: string, cobrada: boolean) => {
+    const motivo = window.prompt(cobrada ? 'Motivo de la anulación de la venta cobrada:' : 'Motivo de la cancelación:');
+    if (motivo === null) return;
+    const devolver = cobrada ? window.confirm('¿La venta se registró por error y no se preparó? Aceptar = devolver el inventario.') : undefined;
+    updateOrderStatus(id, 'cancelado', { motivo: motivo || undefined, devolver_inventario: devolver });
+  };
 
   return (
     <div className="space-y-6 pb-20 sm:pb-8">
@@ -635,7 +559,8 @@ export const VenderTab: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Main Order Form Card */}
+      {/* Main Order Form Card (solo cargos que toman pedidos) */}
+      {puedeVender && (
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -737,10 +662,19 @@ export const VenderTab: React.FC = () => {
                   <span>Datos de entrega a domicilio</span>
                 </span>
                 <span className="text-[10px] text-amber-500 font-semibold">
-                  + Descuenta bolsa, cubiertos y empaque térmico o seco
+                  + Descuenta los empaques configurados para domicilio
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="relative sm:col-span-2">
+                  <input
+                    type="text"
+                    placeholder="Nombre del cliente"
+                    value={cliente}
+                    onChange={(e) => setCliente(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--brand-accent)]"
+                  />
+                </div>
                 <div className="relative">
                   <MapPin className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -1155,11 +1089,37 @@ export const VenderTab: React.FC = () => {
             </div>
           )}
 
+          {/* 7b. Medio de pago (lo registra caja al cobrar) */}
+          {puedeCobrar && (
+            <div>
+              <label className="block text-xs font-bold text-[var(--text-main)] mb-2">
+                Medio de pago:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {METODOS_PAGO.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setMetodoPago(m.id)}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      metodoPago === m.id
+                        ? 'bg-[var(--brand-accent)] text-white border-transparent shadow-sm'
+                        : 'bg-[var(--bg-main)] text-[var(--text-main)] border-[var(--border-soft)] hover:border-[var(--brand-accent)]/50'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* 8. Botones de Acción Inmediata */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <div className={`grid grid-cols-1 ${puedeCobrar ? 'sm:grid-cols-2' : ''} gap-3 pt-2`}>
+            {puedeCobrar && (
             <button
               type="button"
-              disabled={isSubmitting || !currentItem}
+              disabled={isSubmitting || !currentItem || currentItem.disponible === false}
               onClick={() => handleRegisterSale('pagado')}
               className="h-13 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer disabled:opacity-40"
             >
@@ -1175,11 +1135,12 @@ export const VenderTab: React.FC = () => {
                 </>
               )}
             </button>
+            )}
 
             <button
               type="button"
-              disabled={isSubmitting || !currentItem}
-              onClick={() => handleRegisterSale('en_cocina')}
+              disabled={isSubmitting || !currentItem || currentItem.disponible === false}
+              onClick={() => handleRegisterSale('nuevo')}
               className="h-13 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer disabled:opacity-40"
             >
               {isSubmitting ? (
@@ -1197,6 +1158,7 @@ export const VenderTab: React.FC = () => {
           </div>
         </div>
       </motion.div>
+      )}
 
       {/* 9. Historial de Comandas Activas */}
       <motion.div
@@ -1233,8 +1195,9 @@ export const VenderTab: React.FC = () => {
 
               const getEstadoBadge = (st: EstadoComanda) => {
                 switch (st) {
-                  case 'en_cocina':
                   case 'nuevo':
+                    return { label: 'Pendiente', bg: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' };
+                  case 'en_cocina':
                     return { label: 'En Cocina', bg: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' };
                   case 'en_camino':
                     return { label: 'En Camino (Moto)', bg: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30' };
@@ -1242,6 +1205,8 @@ export const VenderTab: React.FC = () => {
                     return { label: 'Listo para Servir', bg: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30' };
                   case 'entregado':
                     return { label: 'Entregado', bg: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' };
+                  case 'cancelado':
+                    return { label: 'Cancelado', bg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' };
                   case 'pagado':
                   default:
                     return { label: 'Pagado', bg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' };
@@ -1249,6 +1214,8 @@ export const VenderTab: React.FC = () => {
               };
 
               const badge = getEstadoBadge(estado);
+              const cobrada = (venta.pago_estado ?? 'pagado') === 'pagado';
+              const activa = estado !== 'cancelado';
 
               return (
                 <motion.div
@@ -1267,6 +1234,11 @@ export const VenderTab: React.FC = () => {
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-soft)]">
                         {venta.tipo_pedido === 'domicilio' ? 'Domicilio' : venta.tipo_pedido === 'para_llevar' ? 'Para Llevar' : (venta.mesa || 'Mesa')}
                       </span>
+                      {activa && !cobrada && estado !== 'pagado' && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                          Por cobrar
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-muted)] mt-1">
@@ -1290,41 +1262,81 @@ export const VenderTab: React.FC = () => {
                           </span>
                         </>
                       )}
+                      {venta.cliente && (
+                        <>
+                          <span>·</span>
+                          <span>{venta.cliente}</span>
+                        </>
+                      )}
+                      {venta.telefono_contacto && (
+                        <>
+                          <span>·</span>
+                          <span className="flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {venta.telefono_contacto}
+                          </span>
+                        </>
+                      )}
+                      {venta.tipo_pedido === 'domicilio' && (
+                        <>
+                          <span>·</span>
+                          {(puedeCobrar || rol === 'domicilios') && activa && estado !== 'entregado' ? (
+                            <select
+                              value={venta.domiciliario || ''}
+                              onChange={(e) => e.target.value && asignarDomiciliario(venta.id_operacion, e.target.value).then(showNotification)}
+                              className="h-6 px-1.5 rounded-md border border-[var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-main)] text-[11px] font-medium focus:outline-none focus:ring-1 focus:ring-[var(--brand-accent)]"
+                              aria-label="Asignar domiciliario"
+                            >
+                              <option value="">Asignar domiciliario…</option>
+                              {domiciliarios.map((d) => (
+                                <option key={d.email} value={d.email}>{d.nombre}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <Bike className="w-3 h-3" />
+                              {venta.domiciliario ? domiciliarios.find((d) => d.email === venta.domiciliario)?.nombre || venta.domiciliario : 'Sin domiciliario'}
+                            </span>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                    {/* Botones de cambio de estado interactivo */}
-                    {estado !== 'pagado' && estado !== 'entregado' && (
-                      <div className="flex items-center gap-1.5">
-                        {estado === 'en_cocina' && venta.tipo_pedido === 'domicilio' && (
-                          <button
-                            type="button"
-                            onClick={() => updateOrderStatus(venta.id_operacion, 'en_camino')}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 transition-colors cursor-pointer"
-                            title="Despachar con motorizado"
-                          >
+                    {/* Botones de cambio de estado según el cargo (la base valida cada cambio) */}
+                    {activa && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {(rol === 'cocina' || rol === 'parrilla' || puedeCobrar) && (estado === 'nuevo') && (
+                          <button type="button" onClick={() => updateOrderStatus(venta.id_operacion, 'en_cocina')} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 transition-colors cursor-pointer" title="Iniciar preparación">
+                            Preparar
+                          </button>
+                        )}
+                        {(rol === 'cocina' || rol === 'parrilla' || puedeCobrar) && (estado === 'en_cocina' || estado === 'nuevo') && (
+                          <button type="button" onClick={() => updateOrderStatus(venta.id_operacion, 'listo')} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30 transition-colors cursor-pointer" title="Marcar como listo">
+                            Listo
+                          </button>
+                        )}
+                        {(puedeCobrar || rol === 'domicilios' || (rol === 'domiciliario' && venta.domiciliario)) && venta.tipo_pedido === 'domicilio' && (estado === 'en_cocina' || estado === 'listo') && (
+                          <button type="button" onClick={() => updateOrderStatus(venta.id_operacion, 'en_camino')} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 transition-colors cursor-pointer" title="Despachar con motorizado">
                             Despachar
                           </button>
                         )}
-                        {(estado === 'en_cocina' || estado === 'en_camino' || estado === 'listo') && (
-                          <button
-                            type="button"
-                            onClick={() => updateOrderStatus(venta.id_operacion, 'entregado')}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 transition-colors cursor-pointer"
-                            title="Confirmar entrega"
-                          >
+                        {rol !== 'cocina' && rol !== 'parrilla' && (estado === 'en_cocina' || estado === 'en_camino' || estado === 'listo') && (
+                          <button type="button" onClick={() => updateOrderStatus(venta.id_operacion, 'entregado')} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 transition-colors cursor-pointer" title="Confirmar entrega">
                             Entregado
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => updateOrderStatus(venta.id_operacion, 'pagado')}
-                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 transition-colors cursor-pointer"
-                          title="Cobrar comanda"
-                        >
-                          Cobrar
-                        </button>
+                        {puedeCobrar && !cobrada && (
+                          <button type="button" onClick={() => updateOrderStatus(venta.id_operacion, 'pagado', { metodo_pago: metodoPago })} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 transition-colors cursor-pointer" title={`Cobrar (${metodoPago})`}>
+                            Cobrar
+                          </button>
+                        )}
+                        {(puedeCobrar || ((rol === 'mesera' || rol === 'domicilios') && estado === 'nuevo')) && (
+                          <button type="button" onClick={() => handleCancelar(venta.id_operacion, cobrada)} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 transition-colors cursor-pointer" title="Cancelar pedido">
+                            Cancelar
+                          </button>
+                        )}
                       </div>
                     )}
 

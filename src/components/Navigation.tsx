@@ -21,6 +21,8 @@ interface NavigationProps {
   onSelectTab?: (tab: TabId) => void;
   setActiveTab?: (tab: TabId) => void;
   alertCount?: number;
+  /** Pestañas permitidas para el cargo del usuario (si no se indica, todas). */
+  allowedTabs?: TabId[];
 }
 
 interface NavItem {
@@ -35,13 +37,14 @@ export const Navigation: React.FC<NavigationProps> = ({
   onSelectTab,
   setActiveTab,
   alertCount = 0,
+  allowedTabs,
 }) => {
   const handleSelect = (tab: TabId) => {
     if (onSelectTab) onSelectTab(tab);
     if (setActiveTab) setActiveTab(tab);
   };
 
-  const items: NavItem[] = [
+  const allItems: NavItem[] = [
     { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
     { id: 'vender', label: 'Vender', icon: UtensilsCrossed },
     { id: 'gastos', label: 'Gastos', icon: Receipt },
@@ -49,6 +52,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'reporte', label: 'Reportes', icon: BarChart3 },
     { id: 'asistente', label: 'Asistente', icon: Bot },
   ];
+  const items = allowedTabs ? allItems.filter((i) => allowedTabs.includes(i.id)) : allItems;
 
   return (
     <>

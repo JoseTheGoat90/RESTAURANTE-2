@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { AuthSession } from '../types.ts';
+import { AuthSession, Rol } from '../types.ts';
 import { SUPABASE_URL, SUPABASE_KEY } from '../config.ts';
 
 const STORAGE_KEY = 'restaurante_auth_session';
@@ -21,7 +21,33 @@ interface AuthContextType {
   logout: () => void;
   getValidAccessToken: () => Promise<string>;
   handleAuthError: () => void;
+  /** Cargo del usuario. En modo demo se comporta como administrador. */
+  rol: Rol | null;
+  /** true si el cargo actual puede usar la función indicada (la base lo vuelve a validar). */
+  puede: (accion: Accion) => boolean;
 }
+
+export type Accion =
+  | 'ver_resumen'
+  | 'ver_finanzas'
+  | 'vender'
+  | 'cobrar'
+  | 'ver_pedidos'
+  | 'ver_inventario'
+  | 'editar_inventario'
+  | 'reportar_faltante'
+  | 'gastos'
+  | 'reportes'
+  | 'asistente';
+
+const PERMISOS: Record<Rol, Accion[]> = {
+  admin: ['ver_resumen', 'ver_finanzas', 'vender', 'cobrar', 'ver_pedidos', 'ver_inventario', 'editar_inventario', 'reportar_faltante', 'gastos', 'reportes', 'asistente'],
+  cocina: ['ver_pedidos', 'ver_inventario', 'reportar_faltante'],
+  parrilla: ['ver_pedidos', 'ver_inventario', 'reportar_faltante'],
+  mesera: ['vender', 'ver_pedidos', 'ver_inventario', 'reportar_faltante'],
+  domicilios: ['vender', 'ver_pedidos', 'ver_inventario', 'reportar_faltante'],
+  domiciliario: ['ver_pedidos'],
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -56,15 +82,16 @@ function toSession(data: any, fallbackEmail: string): AuthSession {
   };
 }
 
-/** Comprueba en la base que el correo esté en usuarios_autorizados. */
-async function checkAutorizado(accessToken: string): Promise<boolean> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/es_autorizado`, {
+/** Pide a la base el cargo del usuario (null = sin acceso a este restaurante). */
+async function fetchPerfil(accessToken: string): Promise<{ rol: Rol; nombre?: string } | null> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/mi_perfil`, {
     method: 'POST',
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: '{}',
   });
-  if (!res.ok) return false;
-  return (await res.json()) === true;
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data?.rol ? { rol: data.rol as Rol, nombre: data.nombre || undefined } : null;
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -115,10 +142,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await fetchToken({ email: cleanEmail, password: pass }, 'password');
       if (!res.ok) return fail('Correo o contraseña incorrectos.');
       const newSession = toSession(await res.json(), cleanEmail);
-      if (!(await checkAutorizado(newSession.accessToken))) {
-        return fail('Acceso denegado: este usuario no está autorizado en este restaurante.');
+      const perfil = await fetchPerfil(newSession.accessToken);
+      if (!perfil) {
+        return fail('Acceso denegado: este usuario no está autorizado en este restaurante o su cuenta está inactiva.');
       }
-      saveSession(newSession);
+      saveSession({ ...newSession, rol: perfil.rol, nombre: perfil.nombre });
       return { ok: true };
     } catch {
       return fail('No se pudo conectar con el servidor. Revisa tu conexión a internet.');
@@ -149,7 +177,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const res = await fetchToken({ refresh_token: current.refreshToken }, 'refresh_token');
         if (!res.ok) throw new Error('refresh');
         const renewed = toSession(await res.json(), current.userEmail);
-        saveSession(renewed);
+        // El cargo puede haber cambiado (o la cuenta desactivada): se vuelve a consultar
+        const perfil = await fetchPerfil(renewed.accessToken);
+        if (!perfil) throw new Error('sin acceso');
+        saveSession({ ...renewed, rol: perfil.rol, nombre: perfil.nombre });
         return renewed.accessToken;
       } catch {
         handleAuthError();
@@ -161,9 +192,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return refreshing.current;
   }, [handleAuthError]);
 
+  // Sesiones guardadas antes de existir los cargos: se consulta el cargo una vez
+  React.useEffect(() => {
+    const current = sessionRef.current;
+    if (!current || current.isDemo || current.rol) return;
+    fetchPerfil(current.accessToken).then((perfil) => {
+      if (!perfil) handleAuthError();
+      else if (sessionRef.current) saveSession({ ...sessionRef.current, rol: perfil.rol, nombre: perfil.nombre });
+    }).catch(() => {});
+  }, [session, handleAuthError]);
+
+  const rol: Rol | null = session ? (session.isDemo ? 'admin' : session.rol ?? null) : null;
+  const puede = useCallback((accion: Accion) => (rol ? PERMISOS[rol].includes(accion) : false), [rol]);
+
   return (
     <AuthContext.Provider
       value={{
+        rol,
+        puede,
         session,
         isAuthenticated: Boolean(session),
         isDemo: Boolean(session?.isDemo),

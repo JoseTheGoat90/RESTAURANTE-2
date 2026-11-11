@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
 import {
   formatStock,
@@ -43,7 +44,18 @@ export const InventarioTab: React.FC = () => {
     executeAdjustStock,
     executeCreateIngredient,
     showNotification,
+    porciones,
+    movimientosPorciones,
+    registrarPorciones,
+    registrarCompra,
+    reportarFaltante,
+    cerrarPeriodoPorciones,
   } = useData();
+  const { puede } = useAuth();
+  const esAdmin = puede('editar_inventario');
+  // Compra (solo al sumar): si se indica el valor, se registra como compra con su gasto
+  const [compraValor, setCompraValor] = useState<string>('');
+  const [compraProveedor, setCompraProveedor] = useState<string>('');
   const { paletteConfig } = useTheme();
 
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -85,6 +97,7 @@ export const InventarioTab: React.FC = () => {
       if (categoriaFiltro === 'granos_legumbres') return i.tipo_insumo === 'granos_legumbres';
       if (categoriaFiltro === 'salsas_condimentos') return i.tipo_insumo === 'salsas_condimentos';
       if (categoriaFiltro === 'desechables') return i.tipo_insumo === 'desechables' || i.tipo_insumo === ('desechable' as any);
+      if (categoriaFiltro === 'bebidas') return i.tipo_insumo === 'bebidas';
       return true;
     });
   }, [ingredientes, searchTerm, categoriaFiltro]);
@@ -97,6 +110,8 @@ export const InventarioTab: React.FC = () => {
     setAdjustAmount('');
     setAdjustType('sumar');
     setAdjustReason('Compra o reposición');
+    setCompraValor('');
+    setCompraProveedor('');
     setAdjustModalOpen(true);
   };
 
@@ -111,14 +126,28 @@ export const InventarioTab: React.FC = () => {
     }
 
     const delta = adjustType === 'sumar' ? amount : -amount;
+    const valorCompra = parseFloat(compraValor);
+    if (!adjustReason.trim()) {
+      showNotification({ ok: false, mensaje: 'El motivo es obligatorio' });
+      return;
+    }
     setIsAdjusting(true);
 
     try {
-      const res = await executeAdjustStock({
-        p_ingrediente: selectedIngredient.ingrediente,
-        p_delta: delta,
-        p_motivo: adjustReason,
-      });
+      // Entrada con valor = compra (suma inventario + crea UN gasto enlazado). Sin valor = ajuste.
+      const res =
+        adjustType === 'sumar' && valorCompra > 0
+          ? await registrarCompra({
+              p_ingrediente: selectedIngredient.ingrediente,
+              p_cantidad: amount,
+              p_valor: valorCompra,
+              p_proveedor: compraProveedor.trim() || undefined,
+            })
+          : await executeAdjustStock({
+              p_ingrediente: selectedIngredient.ingrediente,
+              p_delta: delta,
+              p_motivo: adjustReason,
+            });
 
       showNotification(res);
       if (res.ok) {
@@ -148,11 +177,19 @@ export const InventarioTab: React.FC = () => {
 
     setIsReportingDamage(true);
     try {
-      const res = await executeAdjustStock({
-        p_ingrediente: damageIngredient,
-        p_delta: -amount,
-        p_motivo: `Avería/Daño: ${damageReason}`,
-      });
+      // Administración descuenta la merma; cocina, parrilla y meseras reportan el faltante a administración
+      const res = esAdmin
+        ? await executeAdjustStock({
+            p_ingrediente: damageIngredient,
+            p_delta: -amount,
+            p_motivo: `Avería/Daño: ${damageReason}`,
+          })
+        : await reportarFaltante({
+            p_item: damageIngredient,
+            p_tipo: damageReason.toLowerCase().includes('faltante') ? 'faltante' : 'dañado',
+            p_cantidad: amount,
+            p_nota: damageReason,
+          });
 
       showNotification(res);
       if (res.ok) {
@@ -209,6 +246,31 @@ export const InventarioTab: React.FC = () => {
     }
   };
 
+  const handlePorciones = async (item: string, tipo: 'existente' | 'entrada' | 'ajuste') => {
+    const etiqueta = tipo === 'existente' ? 'Porciones EXISTENTES al iniciar el periodo' : tipo === 'entrada' ? 'Porciones que ENTRAN' : 'Ajuste (+/-) de porciones';
+    const valor = window.prompt(`${capitalizeFirst(item)} · ${etiqueta}:`);
+    if (valor === null) return;
+    const cantidad = parseFloat(valor.replace(',', '.'));
+    if (isNaN(cantidad) || (tipo !== 'ajuste' && cantidad < 0) || (tipo === 'entrada' && cantidad === 0)) {
+      showNotification({ ok: false, mensaje: 'Cantidad de porciones no válida' });
+      return;
+    }
+    let motivo: string | undefined;
+    if (tipo === 'ajuste') {
+      motivo = window.prompt('Motivo del ajuste (obligatorio):') || '';
+      if (!motivo.trim()) {
+        showNotification({ ok: false, mensaje: 'El ajuste necesita un motivo' });
+        return;
+      }
+    }
+    showNotification(await registrarPorciones({ p_item: item, p_tipo: tipo, p_cantidad: cantidad, p_motivo: motivo }));
+  };
+
+  const handleCerrarPeriodo = async () => {
+    if (!window.confirm('¿Cerrar el periodo? El TOTAL de cada producto pasa a ser su EXISTENTE y entradas/ventas vuelven a 0.')) return;
+    showNotification(await cerrarPeriodoPorciones());
+  };
+
   return (
     <div className="space-y-6 pb-20 sm:pb-8">
       {/* Header Banner */}
@@ -260,6 +322,7 @@ export const InventarioTab: React.FC = () => {
                 <span>Reportar Daño / Avería</span>
               </button>
 
+              {esAdmin && (
               <button
                 type="button"
                 onClick={() => setNewIngredientModalOpen(true)}
@@ -269,6 +332,7 @@ export const InventarioTab: React.FC = () => {
                 <Plus className="w-4 h-4" />
                 <span>Nuevo Insumo</span>
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -374,6 +438,17 @@ export const InventarioTab: React.FC = () => {
             >
               Desechables y Cubiertos
             </button>
+            <button
+              type="button"
+              onClick={() => setCategoriaFiltro('bebidas')}
+              className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                categoriaFiltro === 'bebidas'
+                  ? 'bg-[var(--brand-accent)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Bebidas
+            </button>
           </div>
 
           {/* Search bar */}
@@ -447,12 +522,14 @@ export const InventarioTab: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 text-right">
+                      {esAdmin && (
                       <button
                         onClick={() => handleOpenAdjust(ing)}
                         className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[var(--bg-main)] hover:bg-[var(--brand-accent)]/10 text-[var(--text-main)] border border-[var(--border-soft)] transition-colors cursor-pointer"
                       >
                         Ajustar
                       </button>
+                      )}
                     </td>
                   </motion.tr>
                 );
@@ -460,6 +537,106 @@ export const InventarioTab: React.FC = () => {
             </motion.tbody>
           </table>
         </div>
+      </motion.div>
+
+      {/* Inventario de porciones: asados y ejecutivos (Total = Existente + Entradas − Ventas) */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.11 }}
+        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-5 shadow-xs"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <Utensils className="w-4 h-4 text-[var(--brand-accent)]" />
+            <h3 className="text-sm font-bold text-[var(--text-main)]">
+              Inventario de Asados y Ejecutivos (por porciones)
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[var(--text-muted)]">Total = Existente + Entrada − Ventas</span>
+            {esAdmin && (
+              <button type="button" onClick={handleCerrarPeriodo} className="px-2 py-1 rounded-lg text-[11px] font-bold bg-[var(--bg-main)] hover:bg-[var(--brand-accent)]/10 text-[var(--text-main)] border border-[var(--border-soft)] transition-colors cursor-pointer">
+                Cerrar periodo
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-[var(--border-soft)] text-[var(--text-muted)] font-bold">
+                <th className="pb-2.5">Producto</th>
+                <th className="pb-2.5 text-right">Existente</th>
+                <th className="pb-2.5 text-right">Entrada</th>
+                <th className="pb-2.5 text-right">Ventas</th>
+                <th className="pb-2.5 text-right">Total</th>
+                <th className="pb-2.5 pl-4">Estado</th>
+                {esAdmin && <th className="pb-2.5 text-right">Acción</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-soft)]">
+              {porciones.map((p) => {
+                const agotado = p.total <= 0;
+                const bajo = !agotado && p.total <= p.minimo;
+                return (
+                  <tr key={p.item} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                    <td className="py-3 font-semibold text-[var(--text-main)]">
+                      {capitalizeFirst(p.item)}
+                      <span className="ml-1.5 text-[10px] text-[var(--text-muted)] font-medium">{p.grupo === 'ejecutivo' ? 'EJ' : ''}</span>
+                    </td>
+                    <td className="py-3 text-right font-mono text-[var(--text-muted)]">{p.existente}</td>
+                    <td className="py-3 text-right font-mono text-emerald-600 dark:text-emerald-400">+{p.entradas}</td>
+                    <td className="py-3 text-right font-mono text-rose-600 dark:text-rose-400">−{p.ventas}</td>
+                    <td className="py-3 text-right font-mono font-bold text-[var(--text-main)]">{p.total}</td>
+                    <td className="py-3 pl-4">
+                      {agotado ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                          <AlertTriangle className="w-3 h-3" />
+                          Agotado
+                        </span>
+                      ) : bajo ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                          <AlertTriangle className="w-3 h-3" />
+                          Bajo mínimo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Disponible
+                        </span>
+                      )}
+                    </td>
+                    {esAdmin && (
+                      <td className="py-3 text-right whitespace-nowrap space-x-1">
+                        <button type="button" onClick={() => handlePorciones(p.item, 'existente')} className="px-2 py-1 rounded-lg text-[11px] font-bold bg-[var(--bg-main)] hover:bg-[var(--brand-accent)]/10 text-[var(--text-main)] border border-[var(--border-soft)] transition-colors cursor-pointer">Existente</button>
+                        <button type="button" onClick={() => handlePorciones(p.item, 'entrada')} className="px-2 py-1 rounded-lg text-[11px] font-bold bg-[var(--bg-main)] hover:bg-[var(--brand-accent)]/10 text-[var(--text-main)] border border-[var(--border-soft)] transition-colors cursor-pointer">Entrada</button>
+                        <button type="button" onClick={() => handlePorciones(p.item, 'ajuste')} className="px-2 py-1 rounded-lg text-[11px] font-bold bg-[var(--bg-main)] hover:bg-[var(--brand-accent)]/10 text-[var(--text-main)] border border-[var(--border-soft)] transition-colors cursor-pointer">Ajuste</button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {movimientosPorciones.length > 0 && (
+          <div className="mt-4 border-t border-[var(--border-soft)] pt-3 space-y-1.5">
+            <div className="text-[11px] font-bold text-[var(--text-muted)]">Últimos movimientos de porciones</div>
+            {movimientosPorciones.slice(0, 8).map((m) => (
+              <div key={m.id} className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+                <span>
+                  <strong className="text-[var(--text-main)]">{capitalizeFirst(m.item)}</strong> · {m.tipo} {m.cantidad} · {m.motivo} · {m.usuario}
+                </span>
+                <span className="font-mono">
+                  {m.total_anterior} → {m.total_nuevo} · {formatBogotaDateTime(m.created_at)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </motion.div>
 
       {/* Movement History Table */}
@@ -521,6 +698,12 @@ export const InventarioTab: React.FC = () => {
                       <div className="text-xs text-[var(--text-muted)]">
                         {mov.motivo} {mov.referencia ? `(${mov.referencia})` : ''}
                       </div>
+                      {(mov.usuario || mov.stock_nuevo != null) && (
+                        <div className="text-[10px] text-[var(--text-muted)]">
+                          {mov.usuario ? `Por ${mov.usuario}` : ''}
+                          {mov.stock_anterior != null && mov.stock_nuevo != null ? ` · ${mov.stock_anterior} → ${mov.stock_nuevo}` : ''}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -628,6 +811,37 @@ export const InventarioTab: React.FC = () => {
                     required
                   />
                 </div>
+
+                {adjustType === 'sumar' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+                        Valor total de la compra ($):
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={compraValor}
+                        onChange={(e) => setCompraValor(e.target.value)}
+                        placeholder="Vacío = solo entrada"
+                        className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-sm font-mono text-[var(--text-main)] focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
+                        Proveedor:
+                      </label>
+                      <input
+                        type="text"
+                        value={compraProveedor}
+                        onChange={(e) => setCompraProveedor(e.target.value)}
+                        placeholder="Opcional"
+                        className="w-full h-10 px-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-sm text-[var(--text-main)] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-[var(--text-main)] mb-1">
@@ -840,7 +1054,10 @@ export const InventarioTab: React.FC = () => {
                       <option value="granos_legumbres">Granos, Legumbres y Pastas</option>
                       <option value="salsas_condimentos">Salsas, Condimentos y Aceites</option>
                       <option value="desechables">Desechables y Cubiertos</option>
-                      <option value="otro">Otros Ingredientes</option>
+                      <option value="bebidas">Bebidas</option>
+                      <option value="otros_ingredientes">Otros Ingredientes</option>
+                      <option value="limpieza">Aseo y Limpieza</option>
+                      <option value="otro">Otros Suministros</option>
                     </select>
                   </div>
 
@@ -857,6 +1074,11 @@ export const InventarioTab: React.FC = () => {
                       <option value="kg">Kilogramos (kg)</option>
                       <option value="g">Gramos (g)</option>
                       <option value="unidad">Unidades (unidad)</option>
+                      <option value="l">Litros (l)</option>
+                      <option value="ml">Mililitros (ml)</option>
+                      <option value="paquete">Paquetes</option>
+                      <option value="bolsa">Bolsas</option>
+                      <option value="botella">Botellas</option>
                       <option value="porcion">Porciones</option>
                     </select>
                   </div>

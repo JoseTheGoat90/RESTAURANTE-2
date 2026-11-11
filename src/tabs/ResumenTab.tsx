@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useData } from '../context/DataContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
+import { AdminPanel } from '../components/AdminPanel.tsx';
 import { formatCOP, formatBogotaDateTime, capitalizeFirst, formatStock } from '../utils/formatters.ts';
 import { RESTAURANT_IMAGES } from '../assets/images.ts';
 import {
@@ -19,6 +20,8 @@ import {
   ChefHat,
   Sparkles,
   ArrowUpRight,
+  Wallet,
+  Loader2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
@@ -33,7 +36,26 @@ export interface ResumenTabProps {
 }
 
 export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
-  const { reporteHoy, ventas, isLoading } = useData();
+  const { reporteHoy, ventas, isLoading, caja, abrirCaja, cerrarCaja, showNotification } = useData();
+  const [montoCaja, setMontoCaja] = useState<string>('');
+  const [procesandoCaja, setProcesandoCaja] = useState<boolean>(false);
+
+  const handleCaja = async () => {
+    const monto = parseFloat(montoCaja.replace(/[.\s]/g, '').replace(',', '.'));
+    if (isNaN(monto) || monto < 0) {
+      showNotification({ ok: false, mensaje: caja ? 'Escribe el efectivo contado en caja' : 'Escribe la base inicial de la caja' });
+      return;
+    }
+    if (caja && !window.confirm(`¿Cerrar la caja con ${formatCOP(monto)} contados? Esperado: ${formatCOP(caja.esperado)}.`)) return;
+    setProcesandoCaja(true);
+    try {
+      const res = caja ? await cerrarCaja(monto) : await abrirCaja(monto);
+      showNotification(res);
+      if (res.ok) setMontoCaja('');
+    } finally {
+      setProcesandoCaja(false);
+    }
+  };
   const { paletteConfig } = useTheme();
 
   const balance = reporteHoy.balance;
@@ -148,7 +170,7 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-[var(--text-muted)]">
-              Balance neto
+              Balance (ingresos − gastos)
             </span>
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center ${
@@ -171,11 +193,68 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
               {formatCOP(balance)}
             </div>
             <div className="text-xs text-[var(--text-muted)] mt-1">
-              Margen operativo del día
+              No equivale a utilidad neta
             </div>
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Caja del turno: base, ingresos por medio de pago, salidas en efectivo y arqueo */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.1 }}
+        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-soft)] p-5 shadow-xs"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Wallet className="w-4 h-4 stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-[var(--text-main)]">
+                {caja ? 'Caja abierta' : 'Caja cerrada'}
+              </div>
+              {caja ? (
+                <div className="text-xs text-[var(--text-muted)] mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                  <span>Base: <strong className="text-[var(--text-main)] font-mono">{formatCOP(caja.base)}</strong></span>
+                  <span>Efectivo: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">+{formatCOP(caja.ventas_efectivo)}</strong></span>
+                  <span>Otros medios: <strong className="text-[var(--text-main)] font-mono">{formatCOP(caja.ventas_otros)}</strong></span>
+                  <span>Salidas en efectivo: <strong className="text-rose-600 dark:text-rose-400 font-mono">−{formatCOP(caja.gastos_efectivo)}</strong></span>
+                  <span>Esperado en caja: <strong className="text-[var(--text-main)] font-mono">{formatCOP(caja.esperado)}</strong></span>
+                  <span>· {caja.numero_ventas} ventas · abierta por {caja.abierta_por} · {formatBogotaDateTime(caja.abierta_en)}</span>
+                </div>
+              ) : (
+                <div className="text-xs text-[var(--text-muted)] mt-1">
+                  Abre la caja con la base en efectivo para que las ventas y salidas del turno queden registradas en ella.
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={montoCaja}
+              onChange={(e) => setMontoCaja(e.target.value)}
+              placeholder={caja ? 'Efectivo contado' : 'Base inicial'}
+              className="w-36 h-9 px-3 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-main)] text-xs font-mono text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-accent)]"
+            />
+            <button
+              type="button"
+              disabled={procesandoCaja || !montoCaja}
+              onClick={handleCaja}
+              style={{ backgroundColor: paletteConfig.accent }}
+              className="h-9 px-3.5 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              {procesandoCaja && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{caja ? 'Cerrar caja' : 'Abrir caja'}</span>
+            </button>
+          </div>
+        </div>
+      </motion.div>
+
+      <AdminPanel />
 
       {/* Insumos Bajo Mínimo Section */}
       <motion.div
