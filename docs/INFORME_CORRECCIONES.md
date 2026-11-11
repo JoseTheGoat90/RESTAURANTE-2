@@ -68,6 +68,25 @@ Además: las pestañas Resumen, Gastos, Inventario, Reportes e historial no ten�
 
 **Probado:** flujo completo en la base con cuentas simuladas de mesera, cocina y caja (dentro de una transacción que se deshizo): pedido → no duplica → todo o nada → la mesera no puede cobrar → cocina marca listo → agregar a la mesa → entregado → caja cobra $46.500 una sola vez → tablero. En el navegador, en modo demo: pedido de la Mesa 4, que llegó a cocina como una sola tarjeta. **Falta probarlo con cuentas reales** y el chatbot con las herramientas nuevas.
 
+## Auditoría del 11 de noviembre de 2026
+| # | Problema | Gravedad | Corrección |
+|---|---|---|---|
+| 1 | **El chatbot dejó de usar n8n e IA**: un cambio anterior (`0511e19`) lo reemplazó por respuestas fijas por palabras clave, algunas falsas ("descuenta desechables automáticamente"). El proyecto quedaba sin n8n en uso. | Alta | El chat vuelve a consultar el asistente de n8n con la sesión del usuario. Las respuestas fijas quedan solo en modo demo, marcadas "Modo demo, sin IA". |
+| 2 | Una venta **cobrada al momento** (formulario clásico o chatbot) quedaba "entregada" y **nunca llegaba a cocina**. | Alta | La comida pasa por preparación; solo las bebidas se entregan de una vez (migración 009). |
+| 3 | La pantalla de cocina tomaba los pedidos de las **últimas 50 ventas**: en un día movido se perdían pedidos. | Alta | Cocina consulta sus propios pedidos activos (hasta 300, últimas 24 h). |
+| 4 | "Entregado" en una mesa marcaba también **platos que seguían en cocina**. | Media | Solo cambia lo que ya está listo (o en camino). |
+| 5 | No se podían **agregar productos a pedidos antiguos** (sin comanda). | Media | Se buscan por comanda o por id, y quedan unidos. |
+| 6 | Las ventas antiguas cobradas **no tenían fecha de pago** y no salían en el tablero. | Media | Se completó con la fecha de creación. |
+| 7 | Cocina mostraba **un aviso por cada producto** y agrupaba por mesa sin tener en cuenta la comanda. | Baja | Un aviso por pedido; las tarjetas se agrupan por comanda. |
+| 8 | Lectura anónima concedida en `usuarios_autorizados` y `porciones_cierres`, y funciones internas (`_exigir_rol`) que se podían llamar desde fuera. | Baja | Permisos retirados (no exponían datos gracias a RLS, pero sobraban). |
+| 9 | Faltaban índices en búsquedas frecuentes. | Baja | Cinco índices nuevos. |
+
+**Verificado:** todas las correcciones de la base se probaron con cuentas simuladas de caja, mesera y cocina (dentro de una transacción que se deshizo). El webhook de n8n responde y rechaza un token falso (401). El chat en modo demo funciona y la app compila.
+
+**Requiere acción en Supabase (no se puede hacer desde código):** activar *Leaked password protection* en Authentication › Settings.
+
+**Sigue pendiente:** probar el chat y las pantallas con cuentas reales; hoy se permite vender sin inventario (solo avisa), y las bebidas tienen existencias en 0.
+
 ## Pendiente
 - Cargar las porciones iniciales en la planilla y configurar las recetas (cuántas porciones descuenta un asado medio o entero, qué ejecutivo usa cada almuerzo): sin eso las ventas no descuentan porciones.
 - Hoy se puede vender aunque falte inventario (sale un aviso). Si el restaurante prefiere bloquearlo, es un cambio pequeño.

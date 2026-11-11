@@ -5,7 +5,7 @@
 import { useCallback } from 'react';
 import { SUPABASE_URL, SUPABASE_KEY } from '../config.ts';
 import { useAuth } from '../context/AuthContext.tsx';
-import { RpcResult } from '../types.ts';
+import { RpcResult, Venta } from '../types.ts';
 
 export interface ChecklistItem {
   id: number;
@@ -208,5 +208,28 @@ export function useOperacion() {
     [isDemo, conToken]
   );
 
-  return { checklistsHoy, guardarChecklist, vencimientos, fijarVidaUtil, registrarMerma, marcarDisponible, adjuntarComprobante };
+  /** Pedidos activos para la pantalla de cocina (sin el límite de 50 ventas del panel). */
+  const pedidosCocina = useCallback(
+    () =>
+      conToken(async (t) => {
+        const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/ventas?select=id_operacion,fecha,plato,categoria,cantidad,total,estado,tipo_pedido,mesa,tamano_porcion,acompanamiento,con_ensalada,con_salsas,cliente,notas,estacion,comanda_id,created_at` +
+            `&estado=in.(nuevo,en_cocina,listo)&created_at=gte.${encodeURIComponent(desde)}&order=created_at.asc&limit=300`,
+          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${t}` } }
+        );
+        if (!res.ok) throw new Error(`No se pudieron cargar los pedidos (${res.status}).`);
+        return (await res.json()) as Venta[];
+      }),
+    [conToken]
+  );
+
+  /** Cambia el estado de una venta sin mostrar aviso (la pantalla de cocina agrupa los avisos). */
+  const estadoVenta = useCallback(
+    (id: string, estado: string) =>
+      conToken((t) => llamar<RpcResult>('actualizar_estado_venta', { p_id: id, p_estado: estado }, t)),
+    [conToken]
+  );
+
+  return { checklistsHoy, guardarChecklist, vencimientos, fijarVidaUtil, registrarMerma, marcarDisponible, adjuntarComprobante, pedidosCocina, estadoVenta };
 }

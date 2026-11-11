@@ -68,8 +68,12 @@ function decir(texto: string) {
 
 export const CocinaTab: React.FC = () => {
   const { ventas, productos, updateOrderStatus, reloadVentasEInventario, loadAllData, showNotification } = useData();
-  const { rol } = useAuth();
-  const { marcarDisponible } = useOperacion();
+  const { rol, isDemo } = useAuth();
+  const { marcarDisponible, pedidosCocina, estadoVenta } = useOperacion();
+  // Pedidos activos propios: el panel solo carga las últimas 50 ventas y en un día movido se perderían
+  const [remotos, setRemotos] = useState<Venta[]>([]);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const fuente = isDemo ? ventas : remotos;
   const [estacion, setEstacion] = useState<Estacion>(rol === 'parrilla' ? 'parrilla' : rol === 'cocina' ? 'cocina' : 'todas');
   const [ahora, setAhora] = useState(Date.now());
   const [sonido, setSonido] = useState(false);
@@ -79,9 +83,19 @@ export const CocinaTab: React.FC = () => {
   const vistos = useRef<Set<string> | null>(null);
 
   // Refresco automático: la tablet de cocina no tiene quién recargue la página
+  const cargar = useCallback(async () => {
+    if (isDemo) return;
+    try {
+      setRemotos(await pedidosCocina());
+      setErrorCarga(null);
+    } catch (e) {
+      setErrorCarga(e instanceof Error ? e.message : 'Sin conexión con la base.');
+    }
+  }, [isDemo, pedidosCocina]);
+
   useEffect(() => {
-    void reloadVentasEInventario();
-    const t = setInterval(() => void reloadVentasEInventario(), 10_000);
+    void cargar();
+    const t = setInterval(() => void cargar(), 10_000);
     const r = setInterval(() => setAhora(Date.now()), 15_000);
     return () => {
       clearInterval(t);
@@ -96,10 +110,11 @@ export const CocinaTab: React.FC = () => {
   );
 
   const pedidos = useMemo<Pedido[]>(() => {
-    const activos = ventas.filter((v) => (v.estado === 'nuevo' || v.estado === 'en_cocina') && v.estacion !== 'bar' && deEstacion(v));
+    const activos = fuente.filter((v) => (v.estado === 'nuevo' || v.estado === 'en_cocina') && v.estacion !== 'bar' && deEstacion(v));
     const grupos = new Map<string, Pedido>();
     for (const v of activos) {
-      const clave = `${v.tipo_pedido}|${v.tipo_pedido === 'mesa' ? v.mesa : v.id_operacion}`;
+      // Un pedido = su comanda; las ventas antiguas sin comanda se agrupan por mesa
+      const clave = v.comanda_id || `${v.tipo_pedido}|${v.tipo_pedido === 'mesa' ? v.mesa : v.id_operacion}`;
       const ms = new Date(v.created_at || v.fecha).getTime();
       const g = grupos.get(clave) ?? { clave, titulo: tituloPedido(v), items: [], desde: ms, enPreparacion: false };
       g.items.push(v);
@@ -108,11 +123,11 @@ export const CocinaTab: React.FC = () => {
       grupos.set(clave, g);
     }
     return [...grupos.values()].sort((a, b) => a.desde - b.desde);
-  }, [ventas, deEstacion]);
+  }, [fuente, deEstacion]);
 
   const listos = useMemo(
-    () => ventas.filter((v) => v.estado === 'listo' && deEstacion(v) && v.estacion !== 'bar').slice(0, 4),
-    [ventas, deEstacion]
+    () => [...fuente].reverse().filter((v) => v.estado === 'listo' && deEstacion(v) && v.estacion !== 'bar').slice(0, 4),
+    [fuente, deEstacion]
   );
 
   // Aviso de pedido nuevo (no suena con lo que ya estaba al abrir la pantalla)
@@ -133,13 +148,29 @@ export const CocinaTab: React.FC = () => {
       if (ocupado) return;
       setOcupado(p.clave);
       try {
-        for (const it of p.items) await updateOrderStatus(it.id_operacion, estado);
+        if (isDemo) {
+          for (const it of p.items) await updateOrderStatus(it.id_operacion, estado);
+        } else {
+          // Un solo aviso por pedido, no uno por producto
+          const fallos: string[] = [];
+          for (const it of p.items) {
+            const r = await estadoVenta(it.id_operacion, estado).catch((e: Error) => ({ ok: false, mensaje: e.message }));
+            if (!r.ok) fallos.push(r.mensaje);
+          }
+          showNotification(
+            fallos.length
+              ? { ok: false, mensaje: fallos[0] }
+              : { ok: true, mensaje: `${p.titulo}: ${estado === 'listo' ? 'LISTO' : 'en preparación'}.` }
+          );
+          await cargar();
+          void reloadVentasEInventario();
+        }
         if (estado === 'listo' && voz) decir(`${p.titulo} listo`);
       } finally {
         setOcupado(null);
       }
     },
-    [ocupado, updateOrderStatus, voz]
+    [ocupado, updateOrderStatus, voz, isDemo, estadoVenta, showNotification, cargar, reloadVentasEInventario]
   );
 
   // "Bump bar": teclado numérico USB barato, sin tocar la pantalla
@@ -252,6 +283,8 @@ export const CocinaTab: React.FC = () => {
         </div>
       )}
 
+      {errorCarga && <p className="p-3 rounded-xl bg-rose-500/10 text-rose-600 text-sm font-semibold">Sin conexión: {errorCarga}. Se reintenta solo.</p>}
+
       {pedidos.length === 0 && (
         <div className="text-center py-20 text-[var(--text-muted)]">
           <p className="text-3xl font-extrabold">Sin pedidos pendientes</p>
@@ -326,7 +359,11 @@ export const CocinaTab: React.FC = () => {
             <button
               key={v.id_operacion}
               type="button"
-              onClick={() => void updateOrderStatus(v.id_operacion, 'en_cocina')}
+              onClick={async () => {
+                if (isDemo) return void updateOrderStatus(v.id_operacion, 'en_cocina');
+                showNotification(await estadoVenta(v.id_operacion, 'en_cocina').catch((e: Error) => ({ ok: false, mensaje: e.message })));
+                await cargar();
+              }}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[var(--border-soft)] text-xs font-bold cursor-pointer"
               title="Devolver a preparación"
             >

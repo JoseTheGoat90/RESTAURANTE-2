@@ -17,6 +17,8 @@ import {
   Bike,
 } from 'lucide-react';
 import { useData } from '../context/DataContext.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
+import { sendChatMessage } from '../services/api.ts';
 import { useTheme } from '../context/ThemeContext.tsx';
 import { cleanAsterisks, formatCOP, capitalizeFirst } from '../utils/formatters.ts';
 
@@ -28,18 +30,22 @@ interface Message {
 }
 
 const WELCOME_MESSAGE =
-  '¡Hola! Soy el asistente operativo del restaurante. Tengo acceso en tiempo real a tus carnes, acompañamientos, empaques desechables, comandas de mesa, domicilios y gastos operativos.\n\n¿En qué te puedo asesorar hoy?';
+  '¡Hola! Soy el asistente del restaurante. Consulto la base de datos en tiempo real: ventas, pedidos abiertos, inventario, gastos y la proyección del mes. No registro nada sin que lo confirmes.\n\n¿En qué te puedo ayudar hoy?';
 
 const QUICK_PROMPTS = [
-  '¿Cuál es el balance financiero y ventas de hoy?',
-  '¿Qué carnes o insumos tienen stock bajo?',
-  '¿Cómo van los pedidos y domicilios activos?',
-  '¿Cuánto tenemos en gastos pendientes por pagar?',
+  '¿Cómo va el negocio hoy comparado con la semana pasada?',
+  '¿Cómo cerraría el mes a este ritmo?',
+  '¿Qué mesas o pedidos faltan por cobrar?',
+  '¿Qué insumos están más cerca de agotarse?',
+  '¿Qué me recomiendas hacer esta semana?',
 ];
 
 export const AsistenteTab: React.FC = () => {
   const { ventas, gastos, ingredientes, recetas, reporteHoy } = useData();
   const { paletteConfig } = useTheme();
+  const { isDemo, getValidAccessToken } = useAuth();
+  // Un id por conversación: n8n guarda la memoria del chat con este id
+  const sessionIdRef = useRef(`panel-${Date.now()}`);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -148,7 +154,18 @@ Al registrar cualquier comanda, el inventario se descuenta automáticamente por 
 4. "Gastos pendientes": Revisa cuentas y facturas de servicios o proveedores por pagar.`;
   };
 
-  const handleSendMessage = (textToSend?: string) => {
+  const agregarRespuesta = (text: string) =>
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `a-${Date.now()}`,
+        sender: 'assistant',
+        text: cleanAsterisks(text),
+        timestamp: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+
+  const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || inputValue).trim();
     if (!query || isLoading) return;
 
@@ -163,21 +180,29 @@ Al registrar cualquier comanda, el inventario se descuenta automáticamente por 
     if (!textToSend) setInputValue('');
     setIsLoading(true);
 
-    // Simulated short intelligent response delay
-    setTimeout(() => {
-      const responseText = generateAutonomousResponse(query);
-      const assistantMsg: Message = {
-        id: `a-${Date.now()}`,
-        sender: 'assistant',
-        text: cleanAsterisks(responseText),
-        timestamp: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
+    try {
+      if (isDemo) {
+        // Modo demo: sin sesión real no se puede consultar n8n; respuesta local con los datos de ejemplo
+        agregarRespuesta(`(Modo demo, sin IA) ${generateAutonomousResponse(query)}`);
+        return;
+      }
+      // Modo real: el asistente de n8n (Gemini) consulta la base con la sesión del usuario
+      const token = await getValidAccessToken();
+      if (!token) {
+        agregarRespuesta('Tu sesión expiró. Inicia sesión de nuevo para usar el asistente.');
+        return;
+      }
+      const res = await sendChatMessage({ token, message: query, sessionId: sessionIdRef.current });
+      agregarRespuesta(res.output || 'El asistente no devolvió respuesta. Intenta de nuevo.');
+    } catch (err) {
+      agregarRespuesta(`No pude conectar con el asistente (n8n): ${err instanceof Error ? err.message : 'error desconocido'}.`);
+    } finally {
       setIsLoading(false);
-    }, 400);
+    }
   };
 
   const handleClearHistory = () => {
+    sessionIdRef.current = `panel-${Date.now()}`;
     setMessages([
       {
         id: 'welcome-1',
@@ -206,11 +231,11 @@ Al registrar cualquier comanda, el inventario se descuenta automáticamente por 
               </h2>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Autónomo en Vivo
+                {isDemo ? 'Modo demo' : 'IA · n8n'}
               </span>
             </div>
             <p className="text-xs text-[var(--text-muted)]">
-              Consultas en tiempo real sobre ventas, carnes, recetas, domicilios, empaques y gastos
+              Responde con datos reales de la base: ventas, pedidos, inventario, gastos y proyecciones
             </p>
           </div>
         </div>
