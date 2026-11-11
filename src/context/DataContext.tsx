@@ -168,11 +168,27 @@ const INITIAL_CONCEPTOS_GASTO: ConceptoGasto[] = [
   { nombre: 'transporte y fletes de insumos', categoria: 'otros' },
 ];
 
+/** Fecha de hoy (Colombia) para que los datos de ejemplo siempre caigan en el reporte del día. */
+const HOY_DEMO = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
+const haceMin = (m: number) => new Date(Date.now() - 1000 * 60 * m).toISOString();
+const ventaDemo = (n: number, plato: string, categoria: string, cantidad: number, precio: number, extra: Partial<Venta>): Venta => ({
+  id_operacion: `PED-DEMO-${String(n).padStart(3, '0')}`, fecha: HOY_DEMO, plato, categoria, cantidad, precio_unitario: precio,
+  total: precio * cantidad, estado: 'entregado', pago_estado: 'pagado', tipo_pedido: 'mesa', registrado_por: 'mesera@demo',
+  cobrado_por: 'caja@demo', created_at: haceMin(300 - n * 20), ...extra,
+});
+
 const INITIAL_VENTAS: Venta[] = [
+  ventaDemo(4, 'almuerzo corriente', 'almuerzos', 6, 13000, { mesa: 'Mesa 1', metodo_pago: 'efectivo' }),
+  ventaDemo(5, 'asado de carne de res', 'asados', 2, 22000, { mesa: 'Mesa 2', tamano_porcion: 'entera', metodo_pago: 'nequi' }),
+  ventaDemo(6, 'asado de carne de res', 'asados', 3, 15000, { mesa: 'Mesa 4', tamano_porcion: 'media', metodo_pago: 'efectivo' }),
+  ventaDemo(7, 'asado de lomo de cerdo', 'asados', 2, 20000, { tipo_pedido: 'para_llevar', tamano_porcion: 'entera', metodo_pago: 'nequi' }),
+  ventaDemo(8, 'asado de pechuga', 'asados', 2, 14000, { mesa: 'Mesa 5', tamano_porcion: 'media', metodo_pago: 'tarjeta' }),
+  ventaDemo(9, 'corriente especial con mondongo', 'almuerzos', 3, 15000, { tipo_pedido: 'domicilio', metodo_pago: 'nequi' }),
+  ventaDemo(10, 'coca-cola personal', 'bebidas', 5, 3500, { mesa: 'Mesa 2', metodo_pago: 'efectivo' }),
   {
     id_operacion: 'PED-20261110-001',
-    fecha: '2026-11-10',
-    plato: 'asado de carne de res',
+    fecha: HOY_DEMO,
+    plato: 'asado de carne de res', categoria: 'asados', precio_unitario: 22000, metodo_pago: 'efectivo',
     cantidad: 1,
     tamano_porcion: 'entera',
     total: 22000,
@@ -186,8 +202,8 @@ const INITIAL_VENTAS: Venta[] = [
   },
   {
     id_operacion: 'PED-20261110-002',
-    fecha: '2026-11-10',
-    plato: 'sopa de mondongo',
+    fecha: HOY_DEMO,
+    plato: 'sopa de mondongo', categoria: 'sopas', precio_unitario: 16000, metodo_pago: 'nequi',
     cantidad: 2,
     total: 32000,
     estado: 'en_camino',
@@ -199,8 +215,8 @@ const INITIAL_VENTAS: Venta[] = [
   },
   {
     id_operacion: 'PED-20261110-003',
-    fecha: '2026-11-10',
-    plato: 'almuerzo corriente',
+    fecha: HOY_DEMO,
+    plato: 'almuerzo corriente', categoria: 'almuerzos', precio_unitario: 14000, metodo_pago: 'efectivo',
     cantidad: 2,
     total: 28000,
     estado: 'en_cocina',
@@ -212,7 +228,7 @@ const INITIAL_VENTAS: Venta[] = [
 const INITIAL_GASTOS: Gasto[] = [
   {
     id_operacion: 'GST-20261110-01',
-    fecha: '2026-11-10',
+    fecha: HOY_DEMO,
     concepto: 'compra de carnes y pollo',
     categoria: 'insumos',
     valor: 145000,
@@ -224,7 +240,7 @@ const INITIAL_GASTOS: Gasto[] = [
   },
   {
     id_operacion: 'GST-20261110-02',
-    fecha: '2026-11-10',
+    fecha: HOY_DEMO,
     concepto: 'servicio de gas cocina',
     categoria: 'servicios',
     valor: 82000,
@@ -236,7 +252,7 @@ const INITIAL_GASTOS: Gasto[] = [
   },
   {
     id_operacion: 'GST-20261110-03',
-    fecha: '2026-11-10',
+    fecha: HOY_DEMO,
     concepto: 'servicio de vigilancia',
     categoria: 'seguridad',
     valor: 120000,
@@ -247,7 +263,7 @@ const INITIAL_GASTOS: Gasto[] = [
   },
   {
     id_operacion: 'GST-20261110-04',
-    fecha: '2026-11-10',
+    fecha: HOY_DEMO,
     concepto: 'elementos desechables y cubiertos',
     categoria: 'insumos',
     valor: 45000,
@@ -303,12 +319,14 @@ const DEMO_PRODUCTOS: Producto[] = [
   { nombre: 'agua grande', categoria: 'bebidas', precio: 2000, precio_llevar: null, precio_media: null, presentacion: 'grande', disponible: true, activo: true, estacion: 'bar' },
 ];
 
-const DEMO_PORCIONES: ItemPorciones[] = [
-  'lomo de cerdo', 'carne de res', 'pechuga', 'costillas', 'chuleta', 'sobrebarriga', 'chinchurria',
-].map((item): ItemPorciones => ({ item, grupo: 'asado', existente: 0, entradas: 0, ventas: 0, total: 0, minimo: 0, activo: true }))
-  .concat(['ejecutivo de cerdo', 'ejecutivo de chuleta', 'ejecutivo de pechuga', 'ejecutivo de carne de res'].map((item): ItemPorciones => ({
-    item, grupo: 'ejecutivo', existente: 0, entradas: 0, ventas: 0, total: 0, minimo: 0, activo: true,
-  })));
+// Planilla de ejemplo: [corte, existente, entradas, ventas, mínimo]. Total = existente + entradas − ventas.
+const DEMO_PORCIONES: ItemPorciones[] = ([
+  ['lomo de cerdo', 6, 10, 9, 4], ['carne de res', 8, 12, 14, 4], ['pechuga', 5, 10, 8, 4], ['costillas', 4, 6, 7, 3],
+  ['chuleta', 3, 6, 7, 4], ['sobrebarriga', 2, 4, 3, 2], ['chinchurria', 4, 0, 2, 2],
+] as const).map(([item, e, en, v, m]): ItemPorciones => ({ item, grupo: 'asado', existente: e, entradas: en, ventas: v, total: e + en - v, minimo: m, activo: true }))
+  .concat(([
+    ['ejecutivo de cerdo', 4, 6, 5, 2], ['ejecutivo de chuleta', 3, 4, 6, 2], ['ejecutivo de pechuga', 5, 5, 4, 2], ['ejecutivo de carne de res', 4, 6, 7, 2],
+  ] as const).map(([item, e, en, v, m]): ItemPorciones => ({ item, grupo: 'ejecutivo', existente: e, entradas: en, ventas: v, total: e + en - v, minimo: m, activo: true })));
 
 /** Precio que cobra la base para un producto (misma regla que registrar_venta en el servidor). */
 export function precioDeProducto(p: Producto | undefined, tipoPedido: TipoPedido, tamano?: 'media' | 'entera'): number | null {
@@ -495,6 +513,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unidades_por_plato[v.plato] = (unidades_por_plato[v.plato] || 0) + v.cantidad;
     }
 
+    const sumarPor = (clave: (v: Venta) => string | undefined) => {
+      const o: Record<string, number> = {};
+      for (const v of ventasHoy) {
+        const k = clave(v) || 'sin dato';
+        o[k] = (o[k] || 0) + (v.total || 0);
+      }
+      return o;
+    };
+
     const gastos_por_categoria: Record<string, number> = {};
     for (const g of gastosHoy) {
       gastos_por_categoria[g.categoria] = (gastos_por_categoria[g.categoria] || 0) + g.valor;
@@ -517,6 +544,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       balance,
       unidades_por_plato,
       gastos_por_categoria,
+      ventas_por_metodo: sumarPor((v) => String(v.metodo_pago || 'efectivo')),
+      ventas_por_modalidad: sumarPor((v) => v.tipo_pedido || 'mesa'),
+      ventas_por_categoria: sumarPor((v) => v.categoria),
       ingredientes_bajo_minimo,
       movimientos_inventario: movimientos.slice(0, 20).map((m) => ({
         ingrediente: m.ingrediente,

@@ -91,6 +91,7 @@ export interface Tablero {
 export interface ConfigRestaurante {
   nombre: string;
   num_mesas: number;
+  rol_registro?: string | null; // cargo de las cuentas nuevas (null = registro cerrado)
 }
 
 export interface CierrePorciones {
@@ -224,11 +225,16 @@ export function useComandas() {
     ),
     tablero: useCallback(() => conToken((t) => rpc<Tablero>('tablero', {}, t)), [conToken]),
     config: useCallback(
-      () => conToken(async (t) => (await leer<ConfigRestaurante[]>('restaurante_config?select=nombre,num_mesas&limit=1', t))[0] ?? null),
+      () => conToken(async (t) => (await leer<ConfigRestaurante[]>('restaurante_config?select=*&limit=1', t))[0] ?? null),
       [conToken]
     ),
     guardarConfig: useCallback(
-      (nombre: string, mesas: number) => seguro(() => conToken((t) => rpc<RpcResult>('guardar_config', { p_nombre: nombre, p_num_mesas: mesas }, t))),
+      (nombre: string, mesas: number, rolRegistro?: string) =>
+        seguro(() =>
+          conToken((t) =>
+            rpc<RpcResult>('guardar_config', { p_nombre: nombre, p_num_mesas: mesas, ...(rolRegistro !== undefined ? { p_rol_registro: rolRegistro } : {}) }, t)
+          )
+        ),
       [conToken, seguro]
     ),
     planillaCierres: useCallback(

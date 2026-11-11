@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { SUPABASE_URL, SUPABASE_KEY } from '../config.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
 import {
@@ -45,11 +46,58 @@ export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // Crear cuenta: el cargo lo asigna la base según la configuración del restaurante
+  const [modoRegistro, setModoRegistro] = useState(false);
+  const [nombre, setNombre] = useState('');
+  const [registrando, setRegistrando] = useState(false);
+  const [avisoRegistro, setAvisoRegistro] = useState<{ ok: boolean; texto: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) return;
-    await login(email, password);
+    if (!modoRegistro) {
+      await login(email, password);
+      return;
+    }
+    if (password.length < 6) {
+      setAvisoRegistro({ ok: false, texto: 'La contraseña debe tener al menos 6 caracteres.' });
+      return;
+    }
+    setRegistrando(true);
+    setAvisoRegistro(null);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${encodeURIComponent(window.location.origin)}`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase().trim(), password, data: { nombre: nombre.trim() } }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = String(data.msg || data.error_description || data.message || '');
+        setAvisoRegistro({
+          ok: false,
+          texto: /rate limit/i.test(msg)
+            ? 'Se enviaron demasiados correos de confirmación en poco tiempo. Intenta en una hora o pide a administración que te cree la cuenta.'
+            : /registered|exists/i.test(msg)
+              ? 'Ese correo ya tiene cuenta. Inicia sesión.'
+              : /password/i.test(msg)
+                ? 'La contraseña es muy débil. Usa al menos 6 caracteres, con letras y números.'
+                : msg || `No se pudo crear la cuenta (${res.status}).`,
+        });
+        return;
+      }
+      if (data.access_token) {
+        await login(email, password); // el proyecto no exige confirmar el correo
+        return;
+      }
+      setAvisoRegistro({ ok: true, texto: `Cuenta creada. Te enviamos un correo a ${email.trim()}: confírmalo y luego inicia sesión aquí.` });
+      setModoRegistro(false);
+      setPassword('');
+    } catch {
+      setAvisoRegistro({ ok: false, texto: 'No se pudo conectar con el servidor. Revisa tu conexión.' });
+    } finally {
+      setRegistrando(false);
+    }
   };
 
   const isDark = effectiveTheme === 'dark';
@@ -305,8 +353,28 @@ export const LoginScreen: React.FC = () => {
           )}
         </AnimatePresence>
 
+        {avisoRegistro && (
+          <div className={`mb-5 p-3.5 rounded-2xl text-xs font-semibold leading-snug border ${avisoRegistro.ok ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/25 text-rose-600 dark:text-rose-400'}`}>
+            {avisoRegistro.texto}
+          </div>
+        )}
+
         {/* Clean Login Form - Boxes completely blank initially */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {modoRegistro && (
+            <div>
+              <label className="block text-xs font-bold text-[var(--text-main)] mb-1.5">Nombre</label>
+              <input
+                type="text"
+                autoComplete="name"
+                placeholder="Tu nombre"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                disabled={registrando}
+                className="w-full h-12 px-4 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-main)] text-[var(--text-main)] placeholder:text-[var(--text-muted)]/70 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)] focus:border-transparent transition-all duration-200"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold text-[var(--text-main)] mb-1.5">
               Correo Electrónico
@@ -335,7 +403,7 @@ export const LoginScreen: React.FC = () => {
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
-                autoComplete="current-password"
+                autoComplete={modoRegistro ? 'new-password' : 'current-password'}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -357,23 +425,34 @@ export const LoginScreen: React.FC = () => {
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.985 }}
             type="submit"
-            disabled={isLoading || !email.trim() || !password}
+            disabled={isLoading || registrando || !email.trim() || !password}
             style={{ backgroundColor: paletteConfig.accent }}
             className="w-full h-12 mt-2 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isLoading ? (
+            {isLoading || registrando ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Validando credenciales...</span>
+                <span>{registrando ? 'Creando cuenta...' : 'Validando credenciales...'}</span>
               </>
             ) : (
               <>
-                <span>Iniciar Sesión</span>
+                <span>{modoRegistro ? 'Crear cuenta' : 'Iniciar Sesión'}</span>
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
               </>
             )}
           </motion.button>
         </form>
+
+        <button
+          type="button"
+          onClick={() => {
+            setModoRegistro((m) => !m);
+            setAvisoRegistro(null);
+          }}
+          className="w-full mt-3 text-sm font-bold text-[var(--brand-accent)] hover:underline cursor-pointer"
+        >
+          {modoRegistro ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Créala aquí'}
+        </button>
 
         <button
           type="button"

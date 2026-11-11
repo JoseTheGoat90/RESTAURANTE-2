@@ -334,12 +334,14 @@ const ConfigCard: React.FC<{ onGuardado: (r: { ok: boolean; mensaje: string }) =
   const api = useComandas();
   const [nombre, setNombre] = useState('');
   const [mesas, setMesas] = useState('10');
+  const [rolRegistro, setRolRegistro] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (isDemo) return;
     api.config().then((c) => {
       if (c) {
         setNombre(c.nombre);
         setMesas(String(c.num_mesas));
+        if ('rol_registro' in c) setRolRegistro(c.rol_registro ?? '');
       }
     }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,9 +356,23 @@ const ConfigCard: React.FC<{ onGuardado: (r: { ok: boolean; mensaje: string }) =
         <span className="text-xs font-semibold text-[var(--text-muted)]">Mesas</span>
         <input type="number" min={1} max={100} value={mesas} onChange={(e) => setMesas(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-[var(--border-soft)] bg-transparent" />
       </label>
+      {rolRegistro !== undefined && (
+        <label className="space-y-1">
+          <span className="text-xs font-semibold text-[var(--text-muted)]">Cuentas nuevas entran como</span>
+          <select value={rolRegistro} onChange={(e) => setRolRegistro(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)]">
+            <option value="">Registro cerrado</option>
+            <option value="mesera">Mesera</option>
+            <option value="cocina">Cocina</option>
+            <option value="parrilla">Parrilla</option>
+            <option value="domicilios">Encargado de domicilios</option>
+            <option value="domiciliario">Domiciliario</option>
+            <option value="admin">Administrador (ve todo)</option>
+          </select>
+        </label>
+      )}
       <button
         type="button"
-        onClick={async () => onGuardado(isDemo ? { ok: true, mensaje: 'Modo demo: no se guarda.' } : await api.guardarConfig(nombre, Number(mesas)))}
+        onClick={async () => onGuardado(isDemo ? { ok: true, mensaje: 'Modo demo: no se guarda.' } : await api.guardarConfig(nombre, Number(mesas), rolRegistro))}
         className="px-4 py-2 rounded-xl bg-[var(--brand-accent)] text-white font-bold cursor-pointer"
       >
         Guardar

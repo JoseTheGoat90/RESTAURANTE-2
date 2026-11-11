@@ -6,10 +6,14 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
+import { useComandas } from '../services/comandas.ts';
+import { obtenerDetalle, detalleLocal, exportarExcel, exportarPDF, textoPeriodo } from '../services/exportaciones.ts';
 import {
   formatCOP,
   formatBogotaDateOnly,
   capitalizeFirst,
+  getBogotaTodayDateString,
 } from '../utils/formatters.ts';
 import {
   FileBarChart2,
@@ -26,6 +30,8 @@ import {
   Tag,
   AlertCircle,
   Sliders,
+  FileText,
+  Loader2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
@@ -36,13 +42,20 @@ import {
 } from '../utils/animations.ts';
 
 export const ReporteTab: React.FC = () => {
-  const { reporteHoy, generar_reporte, recetas, ventas, gastos } = useData();
+  const { reporteHoy, generar_reporte, recetas, ventas, gastos, porciones, ingredientes } = useData();
   const { paletteConfig } = useTheme();
+  const { isDemo, getValidAccessToken, session } = useAuth();
+  const apiComandas = useComandas();
 
   const [filterDate, setFilterDate] = useState<string>('');
   const [filterHasta, setFilterHasta] = useState<string>('');
   const [reportData, setReportData] = useState(reporteHoy);
   const [isConsulting, setIsConsulting] = useState<boolean>(false);
+  // Rango del reporte que se está viendo (lo que se exporta)
+  const hoy = getBogotaTodayDateString();
+  const [rango, setRango] = useState<{ desde: string; hasta: string }>({ desde: hoy, hasta: hoy });
+  const [exportando, setExportando] = useState<'excel' | 'pdf' | null>(null);
+  const [errorExport, setErrorExport] = useState<string | null>(null);
 
   // Predictive & Simulation State (Recommendation 2)
   const [costIncreasePercent, setCostIncreasePercent] = useState<number>(10); // e.g. 10% annual minimum wage / inflation adjustment
@@ -54,48 +67,39 @@ export const ReporteTab: React.FC = () => {
     try {
       const res = await generar_reporte(filterDate || null, filterDate && filterHasta && filterHasta !== filterDate ? filterHasta : null);
       setReportData(res);
+      const desde = filterDate || getBogotaTodayDateString();
+      setRango({ desde, hasta: filterDate && filterHasta && filterHasta > filterDate ? filterHasta : desde });
     } catch {} finally {
       setIsConsulting(false);
     }
   };
 
-  /** Exporta el reporte consultado a CSV (se abre directamente en Excel). */
-  const exportarExcel = () => {
-    const filas: (string | number)[][] = [
-      ['Reporte', reportData.periodo || ''],
-      ['Ingresos (ventas cobradas)', reportData.total_ventas],
-      ['Gastos pagados', reportData.total_gastos],
-      ['Balance de ingresos y gastos registrados', reportData.balance],
-      ['Número de ventas', reportData.numero_ventas],
-      ['Gastos pendientes', reportData.gastos_pendientes ?? ''],
-      ['Compras', reportData.total_compras ?? ''],
-      [],
-      ['Producto', 'Unidades vendidas'],
-      ...Object.entries(reportData.unidades_por_plato || {}),
-      [],
-      ['Categoría de venta', 'Valor'],
-      ...Object.entries(reportData.ventas_por_categoria || {}),
-      [],
-      ['Modalidad', 'Valor'],
-      ...Object.entries(reportData.ventas_por_modalidad || {}),
-      [],
-      ['Medio de pago', 'Valor'],
-      ...Object.entries(reportData.ventas_por_metodo || {}),
-      [],
-      ['Categoría de gasto', 'Valor'],
-      ...Object.entries(reportData.gastos_por_categoria || {}),
-      [],
-      ['Insumo bajo mínimo', 'Existencia', 'Mínimo', 'Unidad'],
-      ...(reportData.ingredientes_bajo_minimo || []).map((i) => [i.ingrediente, i.stock, i.stock_minimo, i.unidad]),
-    ];
-    const csv = filas.map((f) => f.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reporte_${(reportData.periodo || 'hoy').replace(/\s+/g, '_')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  /** Exporta el reporte que se está viendo, con el detalle de ventas, gastos, carnes e inventario. */
+  const exportar = async (tipo: 'excel' | 'pdf') => {
+    setExportando(tipo);
+    setErrorExport(null);
+    try {
+      let detalle;
+      let restaurante = 'Restaurante';
+      if (isDemo) {
+        detalle = detalleLocal(rango.desde, rango.hasta, ventas, gastos);
+      } else {
+        const token = await getValidAccessToken();
+        if (!token) throw new Error('Tu sesión expiró. Inicia sesión de nuevo.');
+        const [det, cfg] = await Promise.all([obtenerDetalle(rango.desde, rango.hasta, token), apiComandas.config().catch(() => null)]);
+        detalle = det;
+        if (cfg?.nombre) restaurante = cfg.nombre;
+      }
+      const datos = {
+        restaurante, desde: rango.desde, hasta: rango.hasta, reporte: reportData, ...detalle, porciones, ingredientes,
+        generadoPor: isDemo ? 'modo demo' : session?.userEmail,
+      };
+      await (tipo === 'excel' ? exportarExcel(datos) : exportarPDF(datos));
+    } catch (e) {
+      setErrorExport(e instanceof Error ? e.message : 'No se pudo exportar.');
+    } finally {
+      setExportando(null);
+    }
   };
 
   const balance = reportData.balance;
@@ -190,23 +194,31 @@ export const ReporteTab: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={exportarExcel}
-              className="h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
-              title="Exportar a Excel (CSV)"
+              onClick={() => exportar('excel')}
+              disabled={exportando !== null}
+              className="h-10 px-3 rounded-xl border border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              title="Excel con hojas: resumen, productos, ventas, gastos, carnes por porción e inventario"
             >
-              <Download className="w-3.5 h-3.5" />
+              {exportando === 'excel' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               <span>Excel</span>
             </button>
             <button
               type="button"
-              onClick={() => window.print()}
-              className="h-10 px-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
-              title="Imprimir o guardar como PDF"
+              onClick={() => exportar('pdf')}
+              disabled={exportando !== null}
+              className="h-10 px-3 rounded-xl border border-rose-600/30 bg-rose-600/10 text-rose-700 dark:text-rose-400 font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              title="PDF del reporte con indicadores, carnes por porción, inventario y detalle"
             >
+              {exportando === 'pdf' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
               <span>PDF</span>
             </button>
           </form>
         </div>
+        <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
+          Viendo: <strong className="text-stone-700 dark:text-stone-200">{textoPeriodo(rango.desde, rango.hasta)}</strong>. Las exportaciones incluyen
+          resumen, productos, detalle de ventas y gastos, carnes por porción (entera y media) e inventario.
+        </p>
+        {errorExport && <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-400">{errorExport}</p>}
       </motion.div>
 
       {/* 4 Metric Cards with Staggered Entrance */}
