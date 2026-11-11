@@ -1002,3 +1002,16 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.listar_domiciliarios() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.listar_domiciliarios() TO authenticated, service_role;
+
+-- Marcar un faltante reportado como atendido
+CREATE OR REPLACE FUNCTION public.atender_faltante(p_id bigint)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  PERFORM _exigir_rol(ARRAY[]::text[]);
+  UPDATE reportes_faltantes SET atendido = TRUE WHERE id = p_id AND NOT atendido;
+  IF NOT FOUND THEN RETURN jsonb_build_object('ok', false, 'mensaje', 'Reporte no encontrado o ya atendido.'); END IF;
+  PERFORM _auditar('atender', 'faltante', p_id::text);
+  RETURN jsonb_build_object('ok', true, 'mensaje', 'Faltante marcado como atendido.');
+END $$;
+REVOKE ALL ON FUNCTION public.atender_faltante(bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.atender_faltante(bigint) TO authenticated, service_role;

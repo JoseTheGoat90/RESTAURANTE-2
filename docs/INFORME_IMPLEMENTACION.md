@@ -92,9 +92,8 @@ También se comprobó que la app compila (`tsc` y `vite build`) y que en modo de
    - las cantidades de arroz, ensalada, etc.;
    - los desechables por modalidad.
 
-   Solo las bebidas quedaron configuradas (1 unidad por venta).
+   Solo las bebidas quedaron configuradas (1 unidad por venta). Se hace desde Resumen › Administración › Recetas / consumos.
 4. **Unidades y mínimos:** los insumos iniciales quedaron con unidad "por definir" y mínimo 0. Se completan con `guardar_ingrediente`.
-5. **Pantallas de administración** para productos, precios, recetas y empleados: las funciones existen en la base, pero todavía no tienen pantalla.
-6. Sin pantalla todavía: historial de auditoría, lista de faltantes reportados, compras de porciones, gastos recurrentes y soportes (foto o archivo).
+5. **Administración (Resumen › Administración):** ya hay pantallas para productos y precios, recetas/consumos, unidades y mínimos, empleados, faltantes reportados e historial. Siguen sin pantalla: compras para el inventario de porciones, gastos recurrentes y soportes (foto o archivo).
 7. El módulo de proyección de Reportes conserva supuestos fijos de la versión anterior (ventas mínimas de $300.000 diarias). Conviene revisarlo.
 8. **n8n / MCP:** las herramientas deben llamar a estas mismas funciones con la llave de servicio. Las RPC respetan los permisos, pero la llave de servicio actúa como administrador, así que debe guardarse solo en n8n.

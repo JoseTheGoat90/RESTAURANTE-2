@@ -139,6 +139,19 @@ export async function fetchConsumos({ token, onAuthError }: FetchOptions): Promi
 export const rpcListarDomiciliarios = (o: FetchOptions) =>
   rpc<{ email: string; nombre: string }[]>('listar_domiciliarios', {}, o);
 
+async function selectRows<T>(path: string, { token, onAuthError }: FetchOptions): Promise<T[]> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: getSupabaseHeaders(token) });
+  return handleResponse<T[]>(res, onAuthError);
+}
+
+export interface Perfil { email: string; nombre: string; rol: Rol; activo: boolean }
+export interface Faltante { id: number; item: string; tipo: string; cantidad: number | null; nota: string | null; reportado_por: string; atendido: boolean; created_at: string }
+export interface Auditoria { id: number; usuario: string; rol: string | null; accion: string; entidad: string; referencia: string | null; detalle: Record<string, unknown>; created_at: string }
+
+export const fetchPerfiles = (o: FetchOptions) => selectRows<Perfil>('perfiles?select=email,nombre,rol,activo&order=rol.asc,nombre.asc', o);
+export const fetchFaltantes = (o: FetchOptions) => selectRows<Faltante>('reportes_faltantes?select=*&order=created_at.desc&limit=50', o);
+export const fetchAuditoria = (o: FetchOptions) => selectRows<Auditoria>('auditoria?select=*&order=created_at.desc&limit=100', o);
+
 /** Llama una función RPC de Supabase. Todas las validaciones y permisos se aplican en el servidor. */
 async function rpc<T = RpcResult>(name: string, body: Record<string, unknown>, { token, onAuthError }: FetchOptions): Promise<T> {
   const clean: Record<string, unknown> = {};
@@ -227,6 +240,27 @@ export const rpcRegistrarPorciones = (
 ) => rpc('registrar_porciones', p, o);
 
 export const rpcCerrarPeriodoPorciones = (o: FetchOptions) => rpc('cerrar_periodo_porciones', {}, o);
+
+export const rpcGuardarProducto = (
+  p: { p_nombre: string; p_categoria: string; p_precio: number | null; p_precio_llevar?: number | null; p_precio_media?: number | null;
+       p_presentacion?: string | null; p_unidad?: string | null; p_disponible?: boolean; p_activo?: boolean },
+  o: FetchOptions
+) => rpc('guardar_producto', p, o);
+
+export const rpcGuardarConsumo = (
+  p: { p_producto: string; p_variante: string | null; p_tipo: 'porcion' | 'ingrediente'; p_item: string; p_cantidad: number },
+  o: FetchOptions
+) => rpc('guardar_consumo', p, o);
+
+export const rpcGuardarPerfil = (p: { p_email: string; p_nombre: string; p_rol: Rol; p_activo: boolean }, o: FetchOptions) =>
+  rpc('guardar_perfil', p, o);
+
+export const rpcGuardarIngrediente = (
+  p: { p_nombre: string; p_unidad: string; p_minimo: number; p_categoria: string; p_costo_unitario?: number | null },
+  o: FetchOptions
+) => rpc('guardar_ingrediente', p, o);
+
+export const rpcAtenderFaltante = (p: { p_id: number }, o: FetchOptions) => rpc('atender_faltante', p, o);
 
 export const rpcAbrirCaja = (p: { p_base: number }, o: FetchOptions) => rpc('abrir_caja', p, o);
 export const rpcCajaActual = (o: FetchOptions) => rpc<CajaActual | null>('caja_actual', {}, o);

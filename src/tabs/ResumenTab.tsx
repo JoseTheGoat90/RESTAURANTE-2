@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
+import { AdminPanel } from '../components/AdminPanel.tsx';
 import { formatCOP, formatBogotaDateTime, capitalizeFirst, formatStock } from '../utils/formatters.ts';
 import { RESTAURANT_IMAGES } from '../assets/images.ts';
 import {
@@ -192,7 +193,7 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
               {formatCOP(balance)}
             </div>
             <div className="text-xs text-[var(--text-muted)] mt-1">
-              Margen operativo del día
+              No equivale a utilidad neta
             </div>
           </div>
         </motion.div>
@@ -252,6 +253,8 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({ onNavigate }) => {
           </div>
         </div>
       </motion.div>
+
+      <AdminPanel />
 
       {/* Insumos Bajo Mínimo Section */}
       <motion.div
